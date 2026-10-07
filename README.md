@@ -42,7 +42,7 @@ The full guide, with every measure, its command and how to undo it, is in `PROTE
 
 ## Warnings: consequences of using it
 
-Read this before pressing any button other than HOW IS MY PC.
+Read this before pressing any button other than HOW IS MY PC. By using the kit you accept the [terms of use](TERMS.md).
 
 - **It changes system settings.** It touches the firewall, Windows services, the registry and local policies. Every change leaves a backup, but if something goes wrong you may lose Internet until you press **IF I LOSE INTERNET**.
 - **Some features stop working.** File and printer sharing, casting to a TV, Wi-Fi Direct, Remote Desktop, Phone Link, the Xbox Game Bar and apps that open Edge on their own (widgets, help) may fail or need to be re-enabled by hand.
@@ -52,10 +52,14 @@ Read this before pressing any button other than HOW IS MY PC.
 - **Local name resolution** depends on Unbound running. If it stops, pages will not open until it is restarted or removed with **REMOVE MOVIE-GRADE PROTECTION**.
 - **Do not use it on work, school or otherwise managed computers** without written permission from the administrator: it may violate their policies and take the PC out of their management.
 - **Create a Windows restore point** before you start.
+- **Back up your personal files.** The kit's backups cover the settings it changes, not your documents.
+- **Your antivirus may flag the scripts.** Tools that change the firewall and registry often trigger Defender or SmartScreen warnings. Download only from this repository, read the scripts, and never disable your antivirus to run them.
 
 ## License and donations
 
-Free for personal use on your own computers. You may modify it for yourself, but not sell it. Provided as is, with no warranty of any kind: you accept the consequences of the changes you apply.
+Licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE): free for personal and other noncommercial use, and you may modify it, but not sell it or use it for a paid service. Provided as is, with no warranty of any kind and no liability for any damage, data loss or account restriction; you accept the consequences of the changes you apply. Full terms, including lawful use, third-party software and trademarks, are in [TERMS.md](TERMS.md). To report a security problem, see [SECURITY.md](SECURITY.md).
+
+This is an independent project, not affiliated with or endorsed by Microsoft, The Tor Project or LibreWolf. All trademarks belong to their owners.
 
 If it helped you, you can support the project with a donation:
 

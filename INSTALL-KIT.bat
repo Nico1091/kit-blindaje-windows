@@ -18,8 +18,9 @@ echo.
 echo   The kit will be copied to:   %TARGET%
 echo   and the buttons to:          %BUTTONS%
 echo.
-echo   No settings are changed. Press any key to continue,
-echo   or close this window to cancel.
+echo   No settings are changed. By continuing you accept the terms in
+echo   TERMS.md and the license in LICENSE (no warranty, no liability).
+echo   Press any key to continue, or close this window to cancel.
 pause >nul
 
 robocopy "%SOURCE%." "%TARGET%" /E /XD .git buttons __pycache__ /XF INSTALL-KIT.bat .gitignore /NFL /NDL /NJH /NJS /NP
