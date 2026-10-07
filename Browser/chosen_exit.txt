@@ -1,0 +1,5 @@
+# Sites that still go through Tor but ONLY through exits in certain countries, because they block by country.
+# Line "countries:" = allowed country codes. Below it, one site per line.
+# After changing it, close and reopen the Browser.
+
+countries: us ca de nl fr gb

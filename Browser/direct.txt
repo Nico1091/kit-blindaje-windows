@@ -1,0 +1,3 @@
+# Sites that go out DIRECTLY (with your real IP) instead of through Tor, because they reject the whole Tor network.
+# One per line: site  [the same site's own domains, separated by spaces]
+# Third-party content the page loads still goes through Tor. After changing it, close and reopen the Browser.

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Weak connection blocked - Browser</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #1b1f2a; color: #eef1f7;
+         font: 16px/1.55 "Segoe UI", system-ui, sans-serif; }
+  main { max-width: 560px; padding: 32px; }
+  .smiley { width: 72px; height: 72px; border-radius: 50%; background: #ffd23f; position: relative; margin-bottom: 20px; }
+  .smiley::before, .smiley::after { content: ""; position: absolute; top: 24px; width: 9px; height: 13px; border-radius: 50%; background: #1b1f2a; }
+  .smiley::before { left: 20px; } .smiley::after { right: 20px; }
+  .boca { position: absolute; left: 20px; right: 20px; bottom: 15px; height: 4px; border-radius: 2px; background: #1b1f2a; }
+  h1 { font-size: 1.45rem; margin: 0 0 12px; }
+  p { margin: 0 0 12px; color: #c9cfdc; }
+  code { background: #2a3040; padding: 2px 6px; border-radius: 4px; color: #ffd23f; }
+</style>
+</head>
+<body>
+<main>
+  <div class="smiley"><div class="boca"></div></div>
+  <h1>Weak connection blocked</h1>
+  <p>The site <code id="sitio">-</code> only offers outdated encryption (<code id="cifrado">-</code>). The Browser cut the connection before using it, to protect you.</p>
+  <p>This is not a problem with your PC or your Internet: it is how that site's server is configured.</p>
+  <p>If you trust the site and need to get in, add it to the exceptions (<code>smiley.tls_debil_permitido</code>).</p>
+</main>
+<script>
+  const q = new URLSearchParams(location.search);
+  document.getElementById("sitio").textContent = q.get("sitio") || "-";
+  document.getElementById("cifrado").textContent = q.get("cifrado") || "-";
+</script>
+</body>
+</html>
