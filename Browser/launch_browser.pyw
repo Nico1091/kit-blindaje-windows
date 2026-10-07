@@ -1,30 +1,30 @@
 """
-Lanzador del Browser.
+Browser launcher.
 
-LibreWolf 156 ignora las excepciones de cookies cuando borra al cerrar: o lo
-borra todo (y se pierden las sesiones de correo) o no borra nada. Este
-lanzador hace el borrado por su cuenta: antes de abrir y despues de cerrar
-elimina cookies y datos de sitios de TODAS las paginas excepto las de la
-lista CONSERVAR. Todo ocurre en local, sobre los archivos del perfil.
+LibreWolf 156 ignores cookie exceptions when it clears data on close: it
+either clears everything (and mail sessions are lost) or nothing. This
+launcher does the clearing itself: before opening and after closing it
+deletes cookies and site data for ALL pages except those in the CONSERVAR
+list. Everything happens locally, on the profile files.
 
-Las cookies de sesion (sin fecha; NetAcad entra con una) no llegan nunca a
-cookies.sqlite: solo sobreviven dentro del archivo de sesion, y por eso el
-navegador restaura la sesion al abrir. El lanzador reescribe ese archivo al
-cerrar: una sola pestana con la smiley y solo las cookies de CONSERVAR.
+Session cookies (no expiry date; some sites sign you in with one) never reach
+cookies.sqlite: they only survive inside the session file, which is why the
+browser restores the session on start. The launcher rewrites that file on
+close: a single tab with the smiley page and only the CONSERVAR cookies.
 
-IP oculta (desde el 02/10/2026, "siempre"): todo sale por Tor, tambien las
-cuentas. Al abrir enciende, si faltan, el motor Tor de Ubuntu (127.0.0.1:9050, por
-puentes WebTunnel), el de salida elegida (9055), la carrera de circuitos (9070) y
-la puerta directa protegida (9060, solo para direct.txt); normalmente ya los
-mantiene tor_watchdog.pyw, porque el motor no se apaga al cerrar (MOTOR_SIEMPRE).
-Escribe route.pac (directo solo este equipo y la red de casa) y en user.js los
-sitios de direct.txt y de chosen_exit.txt; la ruta de cada pagina la decide
-el filtro de librewolf.overrides.cfg. Si el motor no esta, las paginas que van
-por Tor no salen: no hay plan B directo.
+Hidden IP ("always"): everything goes through Tor, accounts included. On open
+it starts, if missing, the Ubuntu Tor engine (127.0.0.1:9050, over WebTunnel
+bridges), the chosen-exit engine (9055), the circuit race (9070) and the
+protected direct gate (9060, only for direct.txt); normally tor_watchdog.pyw
+keeps them running already, because the engine is not stopped on close
+(MOTOR_SIEMPRE). It writes route.pac (direct only for this PC and the home
+network) and puts the sites from direct.txt and chosen_exit.txt in user.js; the
+route of each page is decided by the filter in librewolf.overrides.cfg. If the
+engine is down, pages that go through Tor do not load: there is no direct plan B.
 
-Un solo lanzador a la vez limpia o abre (candado .lanzador.lock), y "abierto"
-significa que el perfil del Browser esta en uso, no que haya un librewolf.exe
-cualquiera (las pruebas usan perfiles temporales).
+Only one launcher at a time clears or opens (lock file .lanzador.lock), and
+"open" means the Browser's profile is in use, not just that some librewolf.exe
+is running (tests use temporary profiles).
 """
 import glob
 import json
@@ -42,16 +42,16 @@ LIBREWOLF = r"C:\Program Files\LibreWolf\librewolf.exe"
 INICIO = "file:///" + os.path.join(os.path.dirname(os.path.abspath(__file__)), "home.html").replace("\\", "/")
 MOZLZ4 = b"mozLz40\0"
 
-# Dominios cuya sesion se guarda (y todos sus subdominios).
+# Domains whose session is kept (and all their subdomains).
 CONSERVAR = (
-    # Correo y cuentas
+    # Mail and accounts
     "google.com", "youtube.com",
     "live.com", "outlook.com", "microsoftonline.com", "cloud.microsoft", "microsoft.com", "office.com",
-    # Trabajo y desarrollo
+    # Work and development
     "github.com", "linkedin.com", "localhost", "127.0.0.1",
-    # IA
+    # AI
     "chatgpt.com", "openai.com", "claude.ai", "anthropic.com",
-    # Agregue aqui los dominios cuya sesion quiere conservar (y todos sus subdominios).
+    # Add here the domains whose session you want to keep (and all their subdomains).
 )
 
 
@@ -73,9 +73,9 @@ def proceso_librewolf():
 
 
 def perfil_en_uso(prof):
-    """Mientras el navegador tiene abierto un perfil, Windows no deja abrir su parent.lock (medido el
-    04/10/2026); cerrado, se abre. Asi solo cuenta el perfil del Browser y no los LibreWolf de pruebas,
-    que usan perfiles temporales."""
+    """While the browser has a profile open, Windows will not let parent.lock be opened (measured);
+    once closed, it opens. That way only the Browser's profile counts, not test LibreWolf instances,
+    which use temporary profiles."""
     try:
         with open(os.path.join(prof, "parent.lock"), "rb"):
             return False
@@ -86,8 +86,8 @@ def perfil_en_uso(prof):
 
 
 def navegador_abierto(prof=None):
-    """True si el Browser (su perfil) esta abierto. Antes contaba cualquier librewolf.exe, y con una
-    prueba en marcha el lanzador creia el navegador abierto y se saltaba la limpieza."""
+    """True if the Browser (its profile) is open. It used to count any librewolf.exe, and with a test
+    running the launcher thought the browser was open and skipped the clean-up."""
     if not proceso_librewolf():
         return False
     prof = prof or perfil()
@@ -98,10 +98,10 @@ CANDADO = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".lanzador.lo
 
 
 class Candado:
-    """Un solo lanzador a la vez limpiando el perfil o abriendo el navegador (04/10/2026). Si un lanzador
-    viejo seguia esperando el cierre y el navegador se cerraba y se volvia a abrir enseguida, los dos
-    limpiaban a la vez, o uno limpiaba mientras el otro abria. Windows suelta el candado si el proceso
-    muere; si en 90 s no se consigue, se sigue igual: nunca se deja de abrir el navegador por esto."""
+    """Only one launcher at a time clears the profile or opens the browser. If an old launcher was still
+    waiting for the close and the browser was closed and reopened right away, both cleared at once, or
+    one cleared while the other opened. Windows releases the lock if the process dies; if it cannot be
+    taken within 90 s, it carries on anyway: the browser is never kept from opening because of this."""
 
     def __enter__(self):
         import msvcrt
@@ -131,31 +131,31 @@ class Candado:
 
 
 def esperar_apertura(prof, plazo=20):
-    """Tras lanzar el navegador, espera a que tenga su perfil abierto (asi otro lanzador ya lo ve)."""
+    """After launching the browser, waits until its profile is open (so another launcher can see it)."""
     fin = time.time() + plazo
     while time.time() < fin and not navegador_abierto(prof):
         time.sleep(0.5)
 
 
-# --- IP oculta ---------------------------------------------------------------
-# IP siempre oculta (pedida el 02/10/2026: "siempre, no a veces si y a veces no"): nada sale
-# directo a internet, ni las cuentas; solo este equipo y la red de la casa, que no muestran la IP a
-# nadie de fuera. Ademas el cortafuegos de Windows (Security\IP-Always-Hidden.ps1) impide que
-# LibreWolf salga a internet por fuera del tunel. En False: CONSERVAR y DIRECTOS_EXTRA van directo.
-# Unica excepcion (04/10/2026, decidida por el sitio por sitio): los de direct.txt, que rechazan a
-# Tor, salen directo por la puerta local protegida (direct_gate.py, 127.0.0.1:9060); el cortafuegos
-# sigue cerrado para LibreWolf, y lo que esas paginas carguen de terceros sigue por Tor.
+# --- Hidden IP ---------------------------------------------------------------
+# IP always hidden ("always, not sometimes"): nothing goes directly to the Internet, not even
+# accounts; only this PC and the home network, which do not show your IP to anyone outside. On top
+# of that, the Windows firewall (Security\IP-Always-Hidden.ps1) stops LibreWolf from reaching the
+# Internet outside the tunnel. If False: CONSERVAR and DIRECTOS_EXTRA go direct.
+# Only exception (chosen by the user, site by site): those in direct.txt, which reject Tor, go out
+# directly through the protected local gate (direct_gate.py, 127.0.0.1:9060); the firewall stays
+# closed for LibreWolf, and third-party content those pages load still goes through Tor.
 IP_SIEMPRE_OCULTA = True
-# Mojeek no responde por Tor (probado el 02/10/2026 por cinco salidas distintas).
+# Mojeek does not answer through Tor (tested through five different exits).
 DIRECTOS_EXTRA = ("mojeek.com",)
-# True: en TODAS las paginas la hora sale en UTC (como Tor Browser) y las que van por Tor no ven tu
-# zona horaria. A cambio, Gmail, WhatsApp Web o el aula virtual mostraran las horas 5 h adelantadas.
-# LibreWolf no permite hacerlo solo en las paginas que van por Tor, y el formato regional es-CO lo
-# toma de Windows sin forma de cambiarlo solo en el navegador (probado el 02/10/2026).
+# True: on ALL pages the time is shown in UTC (as in Tor Browser) and pages that go through Tor do
+# not see your time zone. In exchange, Gmail, WhatsApp Web and similar sites will show times shifted
+# by your UTC offset. LibreWolf cannot do this only for pages that go through Tor, and it takes the
+# regional format from Windows with no way to change it only in the browser (tested).
 UBICACION_OCULTA = False
 PAC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "route.pac")
 def _distro():
-    """Primera distribucion Ubuntu instalada en WSL."""
+    """First Ubuntu distribution installed in WSL."""
     try:
         out = subprocess.run(["wsl.exe", "-l", "-q"], capture_output=True,
                              creationflags=0x08000000).stdout.decode("utf-16-le", "ignore")
@@ -169,10 +169,10 @@ MOTOR = "~/.smiley/tor-browser.sh"
 SOCKS = ("127.0.0.1", 9050)
 SIN_VENTANA = 0x08000000
 
-PLANTILLA_PAC = r"""// Lo escribe launch_browser.pyw en cada arranque: no editar a mano.
-// Directo: solo este equipo y la red de la casa (y DIRECTOS, vacio mientras IP_SIEMPRE_OCULTA). Todo
-// lo demas sale por Tor; la ruta fina por sitio la decide el filtro de librewolf.overrides.cfg (puerta
-// directa 9060 para direct.txt, motor 9055 para chosen_exit.txt). Sin Tor, no hay plan B directo.
+PLANTILLA_PAC = r"""// Written by launch_browser.pyw on every start: do not edit by hand.
+// Direct: only this PC and the home network (and DIRECTOS, empty while IP_SIEMPRE_OCULTA). Everything
+// else goes through Tor; per-site routing is decided by the filter in librewolf.overrides.cfg (direct
+// gate 9060 for direct.txt, engine 9055 for chosen_exit.txt). Without Tor there is no direct plan B.
 var DIRECTOS = __DIRECTOS__;
 var LOCALES = [".local", ".lan", ".home.arpa", ".internal"];
 function FindProxyForURL(url, host) {
@@ -194,7 +194,7 @@ PUERTA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "direct_gate.p
 
 
 def directos_protegidos():
-    """{sitio: [dominios propios]} de direct.txt: salen directo por la puerta local protegida."""
+    """{site: [own domains]} from direct.txt: they go out directly through the protected local gate."""
     sitios = {}
     try:
         with open(DIRECTOS_TXT, encoding="utf-8") as f:
@@ -228,14 +228,14 @@ def carrera_activa():
 
 
 def encender_carrera():
-    """La carrera de circuitos la mantiene tor_watchdog.pyw; si no esta, se arranca aqui, sin ventana."""
+    """tor_watchdog.pyw keeps the circuit race running; if it is not there, it is started here, windowless."""
     if carrera_activa():
         return
     subprocess.Popen([sys.executable, CARRERA], creationflags=0x00000008 | SIN_VENTANA, close_fds=True)
 
 
 def parametros_navegador():
-    """Bloque "navegador" de speed.json: umbrales del circuito nuevo automatico y de las fuentes."""
+    """Block "navegador" of speed.json: thresholds for the automatic new circuit and for fonts."""
     datos = {"lento_ms": 7000, "atasco_ms": 12000, "fuentes_ms": 200}
     try:
         with open(VELOCIDAD, encoding="utf-8") as f:
@@ -246,21 +246,21 @@ def parametros_navegador():
 
 
 def encender_puerta():
-    """La puerta la mantiene tor_watchdog.pyw; si no esta, se arranca aqui por su cuenta, sin ventana."""
+    """tor_watchdog.pyw keeps the gate running; if it is not there, it is started here on its own, windowless."""
     if puerta_activa():
         return
     subprocess.Popen([sys.executable, PUERTA], creationflags=0x00000008 | SIN_VENTANA, close_fds=True)
 
 
 def directos_ruta():
-    """Sitios de internet que salen directo: ninguno con IP_SIEMPRE_OCULTA."""
+    """Internet sites that go direct: none with IP_SIEMPRE_OCULTA."""
     if IP_SIEMPRE_OCULTA:
         return []
     return sorted(set(CONSERVAR + DIRECTOS_EXTRA) - {"localhost", "127.0.0.1"})
 
 
 def escribir_pac():
-    """Ruta del Browser: directo solo este equipo, la red de la casa y directos_ruta(); lo demas por Tor."""
+    """Browser routing: direct only for this PC, the home network and directos_ruta(); the rest through Tor."""
     texto = PLANTILLA_PAC.replace("__DIRECTOS__", json.dumps(directos_ruta()))
     with open(PAC, "w", encoding="utf-8", newline="\n") as f:
         f.write(texto)
@@ -270,10 +270,10 @@ PREFS_PROPIAS = ("smiley.directos", "smiley.elegida", "smiley.lento_ms", "smiley
 
 
 def escribir_preferencias(prof):
-    """user.js del perfil: los sitios de direct.txt (salen por la puerta directa protegida, con sus
-    dominios propios), los de chosen_exit.txt, los umbrales de speed.json y, para los sitios de
-    CONSERVAR, la excepcion de la proteccion de huella para hora e idioma (la hora y el idioma de cada
-    pestana los fija despues el bloque "Ubicacion oculta" de librewolf.overrides.cfg)."""
+    """Profile user.js: the sites in direct.txt (they go out through the protected direct gate, with their
+    own domains), those in chosen_exit.txt, the speed.json thresholds and, for the CONSERVAR sites, the
+    fingerprinting-protection exception for time and language (each tab's time and language are then
+    set by the "Ubicacion oculta" block of librewolf.overrides.cfg)."""
     cuentas = sorted(set(CONSERVAR + DIRECTOS_EXTRA) - {"localhost", "127.0.0.1"})
     locales = [{"firstPartyDomain": d, "overrides": "-JSDateTimeUTC,-JSLocale"} for d in cuentas]
     nuevas = [
@@ -304,7 +304,7 @@ def motor_activo():
 
 
 def encender_motor():
-    """Enciende el Tor del Browser en Ubuntu, sin ventana. True si lo encendio esta llamada."""
+    """Starts the Browser's Tor in Ubuntu, windowless. True if this call started it."""
     if motor_activo():
         return False
     subprocess.Popen(["wsl.exe", "-d", DISTRO, "--", MOTOR], creationflags=SIN_VENTANA,
@@ -312,22 +312,22 @@ def encender_motor():
     return True
 
 
-# Salida elegida (04/10/2026): sitios que bloquean por pais y no por ser Tor (algunos portales educativos o del Estado) siguen
-# por Tor, pero por un segundo motor (127.0.0.1:9055, tor-chosen.sh) que solo sale por los paises de
-# chosen_exit.txt. Mismo puente WebTunnel: la IP sigue oculta.
+# Chosen exit: sites that block by country rather than for being Tor (some education or government portals) still go
+# through Tor, but through a second engine (127.0.0.1:9055, tor-chosen.sh) that only exits through the countries
+# in chosen_exit.txt. Same WebTunnel bridge: the IP stays hidden.
 SALIDA_ELEGIDA_TXT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "chosen_exit.txt")
 MOTOR_ELEGIDA = "~/.smiley/tor-chosen.sh"
 SOCKS_ELEGIDA = ("127.0.0.1", 9055)
 
 
 def elegidos():
-    """Sitios de chosen_exit.txt (la linea "paises:" no es un sitio)."""
+    """Sites in chosen_exit.txt (the "countries:" line is not a site)."""
     sitios = []
     try:
         with open(SALIDA_ELEGIDA_TXT, encoding="utf-8") as f:
             for linea in f:
                 l = linea.split("#", 1)[0].strip().lower()
-                if l and not l.startswith("paises:"):
+                if l and not l.startswith(("countries:", "paises:")):
                     sitios.append(l.split()[0])
     except OSError:
         pass
@@ -343,7 +343,7 @@ def elegida_activa():
 
 
 def encender_elegida():
-    """Enciende el motor de salida elegida, sin ventana, si algun sitio lo usa. True si lo encendio."""
+    """Starts the chosen-exit engine, windowless, if any site uses it. True if it started it."""
     if not elegidos() or elegida_activa():
         return False
     subprocess.Popen(["wsl.exe", "-d", DISTRO, "--", MOTOR_ELEGIDA], creationflags=SIN_VENTANA,
@@ -351,7 +351,7 @@ def encender_elegida():
     return True
 
 
-# Pedido suyo (02/10/2026): Tor encendido siempre, con o sin navegador. Lo mantiene tor_watchdog.pyw.
+# Tor always on, with or without the browser. Kept alive by tor_watchdog.pyw.
 MOTOR_SIEMPRE = True
 
 
@@ -363,7 +363,7 @@ def apagar_motor():
 
 
 def esperar_cierre(prof=None):
-    # El proceso lanzado puede cerrar antes que el navegador: esperar a que suelte su perfil.
+    # The launched process may exit before the browser does: wait until it releases its profile.
     while navegador_abierto(prof):
         time.sleep(3)
     time.sleep(2)
@@ -373,7 +373,7 @@ REGISTRO = os.path.join(os.path.dirname(os.path.abspath(__file__)), "lanzador.lo
 
 
 def anotar_fallo(donde, error):
-    """El lanzador corre sin ventana: lo que falle queda aqui (sin paginas ni datos, solo el error)."""
+    """The launcher runs windowless: failures are logged here (no pages or data, only the error)."""
     try:
         if os.path.exists(REGISTRO) and os.path.getsize(REGISTRO) > 64 * 1024:
             os.replace(REGISTRO, REGISTRO + ".1")
@@ -384,8 +384,8 @@ def anotar_fallo(donde, error):
 
 
 def limpiar_seguro(prof, donde):
-    """Limpia sin dejar nunca de abrir el navegador: si algo falla, se anota y se sigue (04/10/2026: un
-    archivo de sesion que faltaba tumbaba el lanzador y el Browser no llegaba a abrirse)."""
+    """Clears without ever keeping the browser from opening: if something fails, it is logged and the
+    launcher carries on (a missing session file used to crash the launcher before the Browser opened)."""
     try:
         limpiar(prof)
     except Exception as e:
@@ -393,17 +393,17 @@ def limpiar_seguro(prof, donde):
 
 
 def limpiar_tras_cierre(prof):
-    """Con el navegador ya cerrado: limpia, salvo que otro lanzador lo haya vuelto a abrir entretanto
-    (entonces la limpieza le toca a ese, cuando se cierre)."""
+    """With the browser already closed: clears, unless another launcher reopened it in the meantime
+    (then the clean-up is that launcher's job, when it closes)."""
     with Candado():
         if navegador_abierto(prof):
             return
         apagar_motor()
-        limpiar_seguro(prof, "limpieza al cerrar")
+        limpiar_seguro(prof, "clean-up on close")
 
 
 def limpiar(prof):
-    """Borra cookies y datos de sitios salvo CONSERVAR. Devuelve lo borrado."""
+    """Deletes cookies and site data except CONSERVAR. Returns what was deleted."""
     borradas = 0
     db = os.path.join(prof, "cookies.sqlite")
     if os.path.exists(db):
@@ -416,7 +416,7 @@ def limpiar(prof):
         c.execute("PRAGMA wal_checkpoint(TRUNCATE)")
         c.close()
 
-    # Almacenamiento de sitios: storage/default/https+++sitio.com[^...]
+    # Site storage: storage/default/https+++site.com[^...]
     carpetas = 0
     for d in glob.glob(os.path.join(prof, "storage", "default", "*")):
         nombre = os.path.basename(d)
@@ -429,8 +429,8 @@ def limpiar(prof):
             continue
         shutil.rmtree(d, ignore_errors=True)
         carpetas += 1
-    # Cache del perfil (vive en AppData\Local, no en Roaming): se conserva la de los sitios de
-    # CONSERVAR, para que no vuelvan a bajar todo por Tor en cada apertura; la del resto se borra.
+    # Profile cache (lives in AppData\Local, not Roaming): the CONSERVAR sites' cache is kept, so they
+    # do not re-download everything through Tor on every start; the rest is deleted.
     local = os.path.join(os.path.expandvars(r"%LOCALAPPDATA%\librewolf\Profiles"), os.path.basename(prof), "cache2")
     limpiar_cache(local)
     limpiar_sesion(prof)
@@ -438,9 +438,9 @@ def limpiar(prof):
 
 
 def clave_cache(ruta):
-    """Clave de una entrada de cache2 (p. ej. 'O^partitionKey=%28https%2Ctwitch.tv%29,a,:https://...').
-    Los ultimos 4 bytes del archivo dicen donde empiezan los metadatos; la clave va tras el hash de los
-    metadatos, los hashes de cada trozo de 256 KB y una cabecera de 32 bytes."""
+    """Key of a cache2 entry (e.g. 'O^partitionKey=%28https%2Ctwitch.tv%29,a,:https://...').
+    The file's last 4 bytes say where the metadata starts; the key follows the metadata hash, the hashes
+    of each 256 KB chunk and a 32-byte header."""
     with open(ruta, "rb") as f:
         f.seek(-4, os.SEEK_END)
         fin_datos = struct.unpack(">I", f.read(4))[0]
@@ -460,7 +460,7 @@ def sitio_de_clave(clave):
 
 
 def limpiar_cache(local):
-    """Borra de cache2 todo lo que no sea de un sitio de CONSERVAR (lo dudoso tambien se borra)."""
+    """Deletes from cache2 everything not belonging to a CONSERVAR site (anything doubtful is deleted too)."""
     entradas = os.path.join(local, "entries")
     if not os.path.isdir(entradas):
         shutil.rmtree(local, ignore_errors=True)
@@ -475,7 +475,7 @@ def limpiar_cache(local):
                 os.remove(e.path)
             except OSError:
                 pass
-    # El indice se rehace solo al abrir; lo que quede a medias, fuera.
+    # The index rebuilds itself on start; anything half-written goes.
     for resto in ("index", "index.log"):
         try:
             os.remove(os.path.join(local, resto))
@@ -486,7 +486,7 @@ def limpiar_cache(local):
 
 
 def lz4_leer(src):
-    """Descomprime un bloque LZ4 (el formato de los .jsonlz4)."""
+    """Decompresses an LZ4 block (the .jsonlz4 format)."""
     dst = bytearray()
     i, n = 0, len(src)
     while i < n:
@@ -525,7 +525,7 @@ def lz4_leer(src):
 
 
 def lz4_escribir(datos):
-    """Bloque LZ4 valido sin comprimir: una sola secuencia de literales."""
+    """Valid uncompressed LZ4 block: a single literal sequence."""
     n = len(datos)
     out = bytearray()
     if n < 15:
@@ -548,14 +548,14 @@ def cookie_se_conserva(c):
 
 
 def limpiar_sesion(prof):
-    """Deja cada archivo de sesion con la smiley y las cookies de CONSERVAR."""
+    """Leaves each session file with the smiley page and the CONSERVAR cookies."""
     for f in glob.glob(os.path.join(prof, "sessionstore-backups", "recovery*")):
         os.remove(f)
     archivos = [os.path.join(prof, "sessionstore.jsonlz4")]
     archivos += glob.glob(os.path.join(prof, "sessionstore-backups", "*.jsonlz4*"))
     for f in archivos:
         if not os.path.exists(f):
-            continue  # perfil nuevo o cierre brusco: no hay sesion que limpiar
+            continue  # new profile or abrupt close: no session to clear
         try:
             with open(f, "rb") as h:
                 crudo = h.read()
@@ -564,7 +564,7 @@ def limpiar_sesion(prof):
             j = json.loads(lz4_leer(crudo[12:]))
         except (OSError, ValueError, IndexError):
             try:
-                os.remove(f)  # ilegible: mejor sin sesion que con cookies ajenas
+                os.remove(f)  # unreadable: better no session than foreign cookies
             except OSError:
                 pass
             continue
@@ -589,7 +589,7 @@ def main():
     try:
         escribir_pac()
     except OSError:
-        pass  # se queda la ruta anterior; nunca se deja de abrir el navegador por esto
+        pass  # the previous routing stays; the browser is never kept from opening because of this
     try:
         encender_puerta()
     except OSError:
@@ -610,22 +610,22 @@ def main():
     args = sys.argv[1:]
     with Candado():
         if navegador_abierto(prof) or not prof:
-            # Ya abierto: solo se le pasa la direccion.
+            # Already open: just pass it the address.
             subprocess.Popen([LIBREWOLF] + args)
             ya_abierto = True
         else:
             ya_abierto = False
-            limpiar_seguro(prof, "limpieza al abrir")
+            limpiar_seguro(prof, "clean-up on open")
             try:
                 escribir_preferencias(prof)
             except Exception as e:
-                anotar_fallo("ajustes de user.js", e)
+                anotar_fallo("user.js settings", e)
             entorno = dict(os.environ, TZ="UTC") if UBICACION_OCULTA else None
             proc = subprocess.Popen([LIBREWOLF] + args, env=entorno)
             esperar_apertura(prof)
     if ya_abierto:
         if encendido:
-            # Se habia abierto por otra via, sin motor: se apaga cuando se cierre el navegador.
+            # It had been opened another way, without the engine: stop it when the browser closes.
             esperar_cierre(prof)
             apagar_motor()
         return

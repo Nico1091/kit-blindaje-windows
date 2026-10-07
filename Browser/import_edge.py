@@ -1,14 +1,14 @@
 """
-Importa favoritos, historial y formularios de Edge al Browser (LibreWolf)
-usando el importador propio del navegador, manejado por Marionette en local.
+Imports bookmarks, history and form data from Edge into the Browser (LibreWolf)
+using the browser's own importer, driven locally through Marionette.
 
-    python import_edge.py                 favoritos + historial + formularios
-    python import_edge.py --csv FICHERO   ademas, contrasenas exportadas de Edge
-    python import_edge.py --recordar URL...  sitios que conservan la sesion en disco
-    python import_edge.py --instalar FICHERO.xpi  extension firmada, permanente
+    python import_edge.py                 bookmarks + history + form data
+    python import_edge.py --csv FILE      also, passwords exported from Edge
+    python import_edge.py --recordar URL...  sites that keep their session on disk
+    python import_edge.py --instalar FILE.xpi  signed extension, permanent
 
-Todo ocurre en este equipo: el canal de control escucha solo en 127.0.0.1 y
-se cierra al terminar. El Browser tiene que estar cerrado.
+Everything happens on this PC: the control channel listens only on 127.0.0.1 and
+closes when done. The Browser must be closed.
 """
 import json
 import os
@@ -25,7 +25,7 @@ class Marionette:
     def __init__(self, puerto):
         self.s = socket.create_connection(("127.0.0.1", puerto), timeout=600)
         self.n = 0
-        self._leer()  # saludo del servidor
+        self._leer()  # server greeting
 
     def _leer(self):
         largo = b""
@@ -56,13 +56,13 @@ const hecho = arguments[arguments.length - 1];
   const recordar = arguments[1];
   const salida = {};
   if (recordar) {
-    // Sitios cuya sesion se guarda en el disco aunque al cerrar se borre todo lo demas.
+    // Sites whose session is kept on disk even though everything else is wiped on close.
     for (const sitio of recordar) {
       const pr = Services.scriptSecurityManager.createContentPrincipalFromOrigin(sitio);
       Services.perms.addFromPrincipal(pr, "cookie", Services.perms.ALLOW_ACTION);
     }
-    // Outlook/Office inician sesion en una ventana interna de Microsoft: se les
-    // deja usar su propio almacenamiento pese a la Proteccion total de cookies.
+    // Outlook/Office sign in through an embedded Microsoft window: they are
+    // allowed their own storage despite Total Cookie Protection.
     const tops = ["https://outlook.office.com", "https://outlook.live.com", "https://outlook.office365.com", "https://www.office.com", "https://office.com"];
     const logins = ["https://login.microsoftonline.com", "https://login.live.com", "https://login.microsoft.com"];
     for (const t of tops) {
@@ -77,7 +77,7 @@ const hecho = arguments[arguments.length - 1];
     salida.recordados = Services.perms.getAllByTypes(["cookie"])
       .filter(p => p.capability === Services.perms.ALLOW_ACTION).map(p => p.principal.origin);
   } else if (!csv) {
-    // Sin estos limites el importador solo trae 2000 paginas de 180 dias.
+    // Without these limits the importer only brings 2000 pages from 180 days.
     Services.prefs.setIntPref("browser.migrate.chrome.history.limit", 200000);
     Services.prefs.setIntPref("browser.migrate.chrome.history.maxAgeInDays", 3650);
     const m = await MigrationUtils.getMigrator("chromium-edge");
@@ -115,11 +115,11 @@ def main():
             except OSError:
                 time.sleep(1)
         if not cliente:
-            print("ERROR: el Browser no abrio su canal local")
+            print("ERROR: the Browser did not open its local channel")
             return 1
         cliente.orden("WebDriver:NewSession", {"capabilities": {}})
         if len(sys.argv) > 2 and sys.argv[1] == "--instalar":
-            # Instala una extension firmada de forma permanente (no temporal).
+            # Installs a signed extension permanently (not temporary).
             r = cliente.orden("Addon:Install", {"path": os.path.abspath(sys.argv[2]), "temporary": False})
             print(json.dumps({"instalada": r.get("value", r)}))
             try:

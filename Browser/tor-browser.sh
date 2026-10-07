@@ -1,16 +1,15 @@
 #!/bin/bash
-# Motor Tor del Browser (LibreWolf): SOCKS en 127.0.0.1:9050. Sin ventana. Lo mantiene vivo
-# Security\Browser\tor_watchdog.pyw (tarea "Browser - Tor always").
-# Copia en Windows: Security\Browser\tor-browser.sh; se instala en ~/.smiley/tor-browser.sh.
+# Browser (LibreWolf) Tor engine: SOCKS on 127.0.0.1:9050. No window. Kept alive by
+# Security\Browser\tor_watchdog.pyw (task "Browser - Tor always").
+# Windows copy: Security\Browser\tor-browser.sh; installed as ~/.smiley/tor-browser.sh.
 #
-# Entrada parametrizada (04/10/2026) en Security\Browser\speed.json, bloque "tor":
-#   "entrada": "puente"  -> WebTunnel (por defecto): el proveedor solo ve HTTPS a una pagina comun.
-#              "directo" -> sin puente: el proveedor (Claro) ve que usas Tor, no que visitas. Es legal
-#                           (comprobado el 04/10/2026), pero medido ese dia fue MAS LENTO para el: las
-#                           entradas de Tor estan sobre todo en Europa y su puente en Norteamerica.
-#   "conflux_ux": "throughput" (mas caudal) | "latency" (menos espera)
-#   "salida_paises" / "medio_paises": codigos de pais de los relevos de salida / medio (vacio = cualquiera).
-# La vigilancia de puentes (renovar, rescatar) solo actua con "puente".
+# Entry is set in Security\Browser\speed.json, block "tor" (keys stay in Spanish):
+#   "entrada": "puente"  -> WebTunnel bridge (script default): your ISP only sees HTTPS to an ordinary page.
+#              "directo" -> no bridge: your ISP sees that you use Tor, not what you visit. Legal in most
+#                           countries, and often faster when your bridges are far from Tor's guards.
+#   "conflux_ux": "throughput" (more bandwidth) | "latency" (less waiting)
+#   "salida_paises" / "medio_paises": country codes for exit / middle relays (empty = any).
+# Bridge maintenance (renew, rescue) only runs with "puente".
 C=$HOME/.smiley
 T=$C/tor-browser/Browser/TorBrowser/Tor
 D=$C/tor-browser
@@ -24,33 +23,33 @@ if [ "${1:-}" = "--apagar" ]; then
 fi
 pgrep -u "$(id -u)" -f "[t]or -f $D/torrc" > /dev/null && exit 0
 
-leer() {  # $1 = clave del bloque "tor", $2 = valor por defecto
+leer() {  # $1 = key in the "tor" block, $2 = default value
   python3 -c "import json; print(json.load(open('$VEL', encoding='utf-8')).get('tor', {}).get('$1', '$2'))" 2> /dev/null || echo "$2"
 }
 ENTRADA=$(leer entrada puente)
 UX=$(leer conflux_ux throughput)
-paises() {  # $1 = clave con lista de codigos de pais -> "{us},{ca}" (vacio = cualquier pais)
+paises() {  # $1 = key holding a list of country codes -> "{us},{ca}" (empty = any country)
   python3 -c "import json; print(','.join('{%s}' % p.lower() for p in json.load(open('$VEL', encoding='utf-8')).get('tor', {}).get('$1', [])))" 2> /dev/null
 }
 SALIDA=$(paises salida_paises)
 MEDIO=$(paises medio_paises)
 
-# $1 = cuantos puentes usar (solo con entrada "puente"), en el orden de puentes.txt.
+# $1 = how many bridges to use (only with entry "puente"), in puentes.txt order.
 escribir_torrc() {
   {
     echo "DataDirectory $D"
-    # KeepAliveIsolateSOCKSAuth (04/10/2026, como Tor Browser): el circuito de un sitio no se retira a
-    # los 10 minutos mientras lo sigues usando; sin esto, una sesion larga (Outlook) cambiaba de IP.
+    # KeepAliveIsolateSOCKSAuth (as in Tor Browser): a site's circuit is not retired after 10 minutes
+    # while you keep using it; without this, a long session (e.g. Outlook) would change IP.
     echo "SocksPort 127.0.0.1:$PUERTO KeepAliveIsolateSOCKSAuth"
     echo "AvoidDiskWrites 1"
-    # Base de paises de Tor: sin ella, salida_paises / medio_paises no encontrarian ningun relevo.
+    # Tor's country database: without it, salida_paises / medio_paises would match no relay.
     echo "GeoIPFile $C/tor-browser/Browser/TorBrowser/Data/Tor/geoip"
     echo "GeoIPv6File $C/tor-browser/Browser/TorBrowser/Data/Tor/geoip6"
     echo "PidFile $D/tor.pid"
     echo "Log notice file $D/tor.log"
     echo "ConfluxEnabled 1"
     echo "ConfluxClientUX $UX"
-    # Geografia del recorrido (speed.json, tor.salida_paises / tor.medio_paises; vacio = cualquiera).
+    # Route geography (speed.json, tor.salida_paises / tor.medio_paises; empty = any).
     [ -n "$SALIDA" ] && echo "ExitNodes $SALIDA"
     [ -n "$MEDIO" ] && echo "MiddleNodes $MEDIO"
     { [ -n "$SALIDA" ] || [ -n "$MEDIO" ]; } && echo "StrictNodes 1"
@@ -69,9 +68,9 @@ escribir_torrc 1
 LD_LIBRARY_PATH=$T "$T/tor" -f "$D/torrc" > /dev/null 2>&1 &
 TOR=$!
 
-# Vigilante. Directo: solo calienta el primer circuito. Puente: si conecta, renueva los puentes por
-# dentro de Tor (como mucho cada 12 h); si a los 45 s no conecto, pasa a todos los puentes; si a los
-# 5 minutos sigue sin conectar, pide puentes nuevos.
+# Watchdog. Direct: only warms up the first circuit. Bridge: once connected, renews the bridges
+# through Tor (at most every 12 h); if not connected after 45 s, switches to all bridges; if still
+# not connected after 5 minutes, requests new bridges.
 (
   for i in $(seq 1 100); do
     sleep 3

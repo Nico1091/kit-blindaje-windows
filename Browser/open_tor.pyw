@@ -1,14 +1,14 @@
-# Recibe smiley-tor:<busqueda> desde la pagina de la smiley y la abre en la red Tor.
-# Tor corre dentro de Ubuntu (WSL): en Windows, Smart App Control bloquea Tor Browser.
-# Sin busqueda abre la smiley; con busqueda, Mojeek a traves de Tor.
-# open.sh pone los puentes WebTunnel vivos, repone el disfraz y, si ya esta abierto,
-# manda la busqueda a una pestana nueva de la misma ventana.
+# Receives smiley-tor:<search> from the smiley page and opens it on the Tor network.
+# Tor runs inside Ubuntu (WSL): on Windows, Smart App Control blocks Tor Browser.
+# With no search it opens the smiley page; with one, Mojeek through Tor.
+# open.sh sets the live WebTunnel bridges, restores the disguise and, if already open,
+# sends the search to a new tab in the same window.
 import subprocess
 import sys
 from urllib.parse import quote, unquote
 
 def _distro():
-    """Primera distribucion Ubuntu instalada en WSL."""
+    """First Ubuntu distribution installed in WSL."""
     try:
         out = subprocess.run(["wsl.exe", "-l", "-q"], capture_output=True,
                              creationflags=0x08000000).stdout.decode("utf-16-le", "ignore")

@@ -1,12 +1,12 @@
 #!/bin/bash
-# Motor Tor de SALIDA ELEGIDA del Browser (04/10/2026): SOCKS en 127.0.0.1:9055.
-# Para los sitios que bloquean por pais y no por ser Tor (por ejemplo, portales con filtro geografico): sale
-# solo por relevos de los paises de la linea "paises:" de Security\Browser\chosen_exit.txt.
-# Misma entrada que el motor principal (directa o por puente WebTunnel, segun speed.json): el
-# sitio ve una IP de Tor, nunca la tuya. Lo mantiene vivo tor_watchdog.pyw. "--apagar" lo detiene.
-# Se copia a ~/.smiley/tor-chosen.sh (Setup-Browser.ps1 / lanzador).
-# 04/10/2026, noche: KeepAliveIsolateSOCKSAuth (el circuito no se retira mientras se usa) y, como el
-# motor principal, si a los 45 s no conecto con el primer puente, pasa a todos los de puentes.txt.
+# Browser CHOSEN-EXIT Tor engine: SOCKS on 127.0.0.1:9055.
+# For sites that block by country rather than for being Tor (e.g. geo-filtered portals): exits only
+# through relays in the countries on the "countries:" line of Security\Browser\chosen_exit.txt.
+# Same entry as the main engine (direct or WebTunnel bridge, per speed.json): the site sees a Tor IP,
+# never yours. Kept alive by tor_watchdog.pyw. "--apagar" stops it.
+# Copied to ~/.smiley/tor-chosen.sh (Setup-Browser.ps1 / launcher).
+# KeepAliveIsolateSOCKSAuth (a circuit is not retired while in use) and, like the main engine, if the
+# first bridge has not connected after 45 s, it switches to all bridges in puentes.txt.
 C=$HOME/.smiley
 T=$C/tor-browser/Browser/TorBrowser/Tor
 D=$C/tor-elegida
@@ -20,19 +20,19 @@ if [ "${1:-}" = "--apagar" ]; then
 fi
 pgrep -u "$(id -u)" -f "tor -f $D/torrc" > /dev/null && exit 0
 
-PAISES=$(grep -i '^paises:' "$LISTA" 2> /dev/null | head -n 1 | cut -d: -f2)
+PAISES=$(grep -iE '^(countries|paises):' "$LISTA" 2> /dev/null | head -n 1 | cut -d: -f2)
 [ -z "${PAISES// /}" ] && PAISES="us ca mx cl de nl fr gb"
 NODOS=""
 for p in $PAISES; do NODOS="$NODOS{${p,,}},"; done
 NODOS=${NODOS%,}
 
-# Mapa de la red ya descargado por el motor principal: arranque en segundos.
+# Network map already downloaded by the main engine: starts in seconds.
 for f in "$C"/tor-browser/cached-*; do
   [ -e "$f" ] && [ ! -e "$D/$(basename "$f")" ] && cp "$f" "$D/"
 done
-# Entrada como el motor principal (speed.json, bloque "tor", clave "entrada"): directo o puente.
+# Entry as in the main engine (speed.json, block "tor", key "entrada"): directo or puente.
 ENTRADA=$(python3 -c "import json; print(json.load(open('__WINHOME__/Security/Browser/speed.json', encoding='utf-8')).get('tor', {}).get('entrada', 'puente'))" 2> /dev/null || echo puente)
-escribir_torrc() {  # $1 = cuantos puentes usar (solo con entrada "puente"), en el orden de puentes.txt
+escribir_torrc() {  # $1 = how many bridges to use (only with entry "puente"), in puentes.txt order
 {
   echo "DataDirectory $D"
   echo "SocksPort 127.0.0.1:$PUERTO KeepAliveIsolateSOCKSAuth"
@@ -58,7 +58,7 @@ escribir_torrc 1
 : > "$D/tor.log"
 env LD_LIBRARY_PATH="$T" "$T/tor" -f "$D/torrc" > /dev/null 2>&1 &
 TOR=$!
-# Si a los 45 s no conecto con el primer puente, todos los de puentes.txt (los renueva el principal).
+# If the first bridge has not connected after 45 s, use all of puentes.txt (the main engine renews them).
 (
   for i in $(seq 1 15); do
     sleep 3

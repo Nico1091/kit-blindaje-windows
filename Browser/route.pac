@@ -1,7 +1,7 @@
-// Lo escribe launch_browser.pyw en cada arranque: no editar a mano.
-// Directo: solo este equipo y la red de la casa (y DIRECTOS, vacio mientras IP_SIEMPRE_OCULTA). Todo
-// lo demas sale por Tor; la ruta fina por sitio la decide el filtro de librewolf.overrides.cfg (puerta
-// directa 9060 para direct.txt, motor 9055 para chosen_exit.txt). Sin Tor, no hay plan B directo.
+// Written by launch_browser.pyw on every start: do not edit by hand.
+// Direct: only this PC and the home network (and DIRECTOS, empty while IP_SIEMPRE_OCULTA). Everything
+// else goes through Tor; per-site routing is decided by the filter in librewolf.overrides.cfg (direct
+// gate 9060 for direct.txt, engine 9055 for chosen_exit.txt). Without Tor there is no direct plan B.
 var DIRECTOS = [];
 var LOCALES = [".local", ".lan", ".home.arpa", ".internal"];
 function FindProxyForURL(url, host) {

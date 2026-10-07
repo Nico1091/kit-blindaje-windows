@@ -1,5 +1,5 @@
-# Sitios que siguen por Tor pero SOLO por salidas de ciertos paises, porque bloquean por pais.
-# Linea "paises:" = codigos de pais permitidos. Debajo, un sitio por linea.
-# Tras cambiarlo, cierre y abra el Browser.
+# Sites that still go through Tor but ONLY through exits in certain countries, because they block by country.
+# Line "countries:" = allowed country codes. Below it, one site per line.
+# After changing it, close and reopen the Browser.
 
-paises: us ca de nl fr gb
+countries: us ca de nl fr gb

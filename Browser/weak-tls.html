@@ -1,8 +1,8 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Conexión débil cortada - Browser</title>
+<title>Weak connection blocked - Browser</title>
 <style>
   :root { color-scheme: light dark; }
   body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #1b1f2a; color: #eef1f7;
@@ -20,10 +20,10 @@
 <body>
 <main>
   <div class="smiley"><div class="boca"></div></div>
-  <h1>Conexión débil cortada</h1>
-  <p>El sitio <code id="sitio">-</code> solo ofrece un cifrado antiguo (<code id="cifrado">-</code>). El Browser cortó la conexión antes de usarla, para protegerte.</p>
-  <p>No es un fallo de tu equipo ni de tu internet: es la configuración del servidor de ese sitio.</p>
-  <p>Si confías en el sitio y necesitas entrar, pide que lo añadan a las excepciones (<code>smiley.tls_debil_permitido</code>).</p>
+  <h1>Weak connection blocked</h1>
+  <p>The site <code id="sitio">-</code> only offers outdated encryption (<code id="cifrado">-</code>). The Browser cut the connection before using it, to protect you.</p>
+  <p>This is not a problem with your PC or your Internet: it is how that site's server is configured.</p>
+  <p>If you trust the site and need to get in, add it to the exceptions (<code>smiley.tls_debil_permitido</code>).</p>
 </main>
 <script>
   const q = new URLSearchParams(location.search);

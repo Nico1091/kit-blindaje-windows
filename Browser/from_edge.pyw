@@ -1,14 +1,14 @@
-# Todo lo que Windows manda a Edge (PDF, enlaces de Word u Outlook) llega aqui
-# por la redireccion de msedge.exe, y se abre en el Browser con su archivo.
-# Siempre por el lanzador: enciende el motor Tor que oculta la IP del Browser.
+# Everything Windows sends to Edge (PDFs, links from Word or Outlook) arrives here
+# through the msedge.exe redirection, and opens in the Browser with its file.
+# Always through the launcher: it starts the Tor engine that hides the Browser's IP.
 import subprocess
 import sys
 from pathlib import Path
 
 BUSCADOR = Path(__file__).with_name("launch_browser.pyw")
 
-# argv[1] es la ruta de msedge.exe; lo demas son opciones de Edge y lo que se queria abrir.
-# Con --single-argument, Windows parte por los espacios una sola ruta: se vuelve a juntar.
+# argv[1] is the msedge.exe path; the rest are Edge options and whatever was to be opened.
+# With --single-argument, Windows splits a single path on spaces: it is joined back.
 args = sys.argv[2:]
 if "--single-argument" in args:
     args = [" ".join(args[args.index("--single-argument") + 1:])]
@@ -27,8 +27,8 @@ for a in args:
 subprocess.Popen([sys.executable, str(BUSCADOR), *cosas])
 
 
-# Lo abierto sale al frente, maximizado y encima de lo que se este viendo.
-# Windows no deja que un proceso de fondo robe el foco: se simula la tecla Alt.
+# What was opened comes to the front, maximized and on top of whatever is showing.
+# Windows does not let a background process steal focus: an Alt key press is simulated.
 import ctypes
 import os
 import time
@@ -57,7 +57,7 @@ def buscar():
     return hallada[0] if hallada else None
 
 
-for _ in range(120):  # hasta 30 s: el primer arranque del Browser tarda
+for _ in range(120):  # up to 30 s: the Browser's first start is slow
     time.sleep(0.25)
     h = buscar()
     if h:
