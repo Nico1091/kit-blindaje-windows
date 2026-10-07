@@ -171,10 +171,10 @@ python .\Checker.py
 ```
 
 ### Browser configuration files
-- `Browser\launch_browser.pyw`, list `CONSERVAR`: domains whose session is kept on close.
+- `Browser\launch_browser.pyw`, list `KEEP_SESSIONS`: domains whose session is kept on close.
 - `Browser\direct.txt`: sites that reject the whole Tor network and go out with your real IP. Only those sites.
 - `Browser\chosen_exit.txt`: sites that block by country; they go through Tor, but only through relays in the countries on the `countries:` line.
-- `Browser\speed.json`: Tor entry (`directo` or `puente`) and speed parameters. Its keys are in Spanish; each block has a `_que_es` note in English.
+- `Browser\speed.json`: Tor entry (`direct` or `bridge`) and speed parameters; each block has an `_about` note.
 
 After changing any of them, close and reopen the Browser.
 

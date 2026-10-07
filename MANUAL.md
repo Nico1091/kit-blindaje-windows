@@ -91,9 +91,9 @@ Almost every script that changes something accepts `-Revert` to undo it: `Disabl
 
 ## 7. The Browser
 
-The Browser is LibreWolf with its own configuration and a yellow smiley as its icon. It reaches the Internet through Tor, which runs inside WSL, and does not use your ISP's DNS. It deletes cookies and cache on close, except for the domains listed in `CONSERVAR` inside `Browser\launch_browser.pyw`, where you add the sites whose session you want to keep.
+The Browser is LibreWolf with its own configuration and a yellow smiley as its icon. It reaches the Internet through Tor, which runs inside WSL, and does not use your ISP's DNS. It deletes cookies and cache on close, except for the domains listed in `KEEP_SESSIONS` inside `Browser\launch_browser.pyw`, where you add the sites whose session you want to keep.
 
-It ships with direct entry to Tor. To use WebTunnel bridges, paste them into `~/.smiley/bridges.sh` inside WSL and set `"entrada": "puente"` in `Browser\speed.json`. Sites that reject the whole Tor network go in `Browser\direct.txt` (they go out with your real IP, only those), and sites that block by country, in `Browser\chosen_exit.txt`, on the `countries:` line.
+It ships with direct entry to Tor. To use WebTunnel bridges, paste them into `~/.smiley/bridges.sh` inside WSL and set `"entry": "bridge"` in `Browser\speed.json`. Sites that reject the whole Tor network go in `Browser\direct.txt` (they go out with your real IP, only those), and sites that block by country, in `Browser\chosen_exit.txt`, on the `countries:` line.
 
 ## 8. Warnings: consequences of using it
 

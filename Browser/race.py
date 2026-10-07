@@ -5,17 +5,17 @@ Measured: with Tor, roughly 1 in 10 new pages lands on a slow or dead circuit, a
 up on it for 10 s (that time cannot be lowered). This piece sits between the browser and Tor (9050)
 and makes several circuits compete on the FIRST connection to each site:
 
-  mode "saludo" (default): accepts the browser's connection, takes its first message (the TLS hello)
+  mode "hello" (default): accepts the browser's connection, takes its first message (the TLS hello)
       and sends it over N circuits; the first one whose server ANSWERS wins. That picks the circuit
       that really replies first, not just the one that connects first. The others are closed.
-  mode "conexion": the first circuit to connect wins (Tor says "connected").
+  mode "connect": the first circuit to connect wins (Tor says "connected").
 
-After that, the whole site keeps using the winning circuit for "vigencia_s" (like Tor, 9 minutes), so
+After that, the whole site keeps using the winning circuit for "stick_s" (like Tor, 9 minutes), so
 IPs are not mixed (Twitch breaks if they are). If that circuit dies completely, the site moves to another.
 
-Parameters in speed.json, block "carrera" (re-read only when it changes): activa, modo, circuitos
-(1-3), espera_s (0 = all at once; otherwise each extra circuit joins after that delay), vigencia_s,
-max_simultaneas (races at once; above that, a single circuit: avoids clogging Tor's queue).
+Parameters in speed.json, block "race" (re-read only when it changes): enabled, mode, circuits
+(1-3), stagger_s (0 = all at once; otherwise each extra circuit joins after that delay), stick_s,
+max_concurrent (races at once; above that, a single circuit: avoids clogging Tor's queue).
 
   - Never goes direct: it only talks to Tor. If this piece does not answer, the browser falls back to
     Tor without a race (backup proxy in the routing filter).
@@ -36,7 +36,7 @@ ESTADO = os.path.join(AQUI, os.environ.get("CARRERA_ESTADO", "carrera.json"))
 CONFIG = os.environ.get("CARRERA_CONFIG", os.path.join(AQUI, "speed.json"))
 ESCUCHA = ("127.0.0.1", int(os.environ.get("CARRERA_PUERTO", "9070")))
 TOR = ("127.0.0.1", int(os.environ.get("CARRERA_TOR_PUERTO", "9050")))
-DEFECTO = {"activa": True, "modo": "saludo", "circuitos": 2, "espera_s": 0.0, "vigencia_s": 540, "max_simultaneas": 3}
+DEFECTO = {"enabled": True, "mode": "hello", "circuits": 2, "stagger_s": 0.0, "stick_s": 540, "max_concurrent": 3}
 TOPE = 45
 SUFIJOS = "abc"
 
@@ -47,7 +47,7 @@ _desde = time.strftime("%Y-%m-%d %H:%M:%S")
 
 
 def conf():
-    """Block "carrera" of speed.json, re-read only if the file changed."""
+    """Block "race" of speed.json, re-read only if the file changed."""
     try:
         m = os.path.getmtime(CONFIG)
     except OSError:
@@ -55,11 +55,11 @@ def conf():
     if m != _conf["mtime"]:
         try:
             with open(CONFIG, encoding="utf-8") as f:
-                d = json.load(f).get("carrera") or {}
+                d = json.load(f).get("race") or {}
         except (OSError, ValueError):
             d = {}
         datos = {**DEFECTO, **d}
-        datos["circuitos"] = max(1, min(3, int(datos["circuitos"])))
+        datos["circuits"] = max(1, min(3, int(datos["circuits"])))
         _conf.update(mtime=m, datos=datos)
     return _conf["datos"]
 
@@ -156,9 +156,9 @@ async def _competir(fabricar, n, espera):
 
 def _orden(clave, c):
     """Circuit suffixes to try, starting with the site's current winner."""
-    sufijos = list(SUFIJOS[:c["circuitos"]])
+    sufijos = list(SUFIJOS[:c["circuits"]])
     g = _ganador.get(clave)
-    if g and time.time() - g[1] < c["vigencia_s"] and g[0] in SUFIJOS:
+    if g and time.time() - g[1] < c["stick_s"] and g[0] in SUFIJOS:
         if g[0] in sufijos:
             sufijos.remove(g[0])
         sufijos.insert(0, g[0])
@@ -265,16 +265,16 @@ async def _atender(lector, escritor):
         # If another connection to the same site is racing, wait for its winner: one race per site,
         # so the whole site goes out through the same IP.
         ev = _en_carrera.get(clave)
-        if c["activa"] and ev is not None:
+        if c["enabled"] and ev is not None:
             try:
                 await asyncio.wait_for(ev.wait(), TOPE)
             except asyncio.TimeoutError:
                 pass
         sufijos, vigente = _orden(clave, c)
-        if not c["activa"]:
+        if not c["enabled"]:
             sufijos, vigente = [""], True
 
-        if not vigente and len(sufijos) > 1 and _en_curso["n"] >= int(c.get("max_simultaneas", 3)):
+        if not vigente and len(sufijos) > 1 and _en_curso["n"] >= int(c.get("max_concurrent", 3)):
             sufijos = sufijos[:1]          # too many races at once: a single circuit
         if vigente or len(sufijos) == 1:
             try:
@@ -297,7 +297,7 @@ async def _atender(lector, escritor):
         _en_curso["n"] += 1
         primeros = b""
         try:
-            if c["modo"] == "saludo":
+            if c["mode"] in ("hello", "saludo"):
                 escritor.write(_respuesta(0))
                 await escritor.drain()
                 try:
@@ -309,7 +309,7 @@ async def _atender(lector, escritor):
                 try:
                     i, (rl, re_, primeros) = await _competir(
                         lambda k: _por_tor_con_saludo(_usuario(clave, sufijos[k]), tipo, destino, puerto, saludo),
-                        len(sufijos), float(c["espera_s"]))
+                        len(sufijos), float(c["stagger_s"]))
                 except (OSError, asyncio.TimeoutError, asyncio.IncompleteReadError):
                     _cuenta["fallidas"] += 1
                     return
@@ -317,7 +317,7 @@ async def _atender(lector, escritor):
                 try:
                     i, (rl, re_) = await _competir(
                         lambda k: _por_tor(_usuario(clave, sufijos[k]), tipo, destino, puerto),
-                        len(sufijos), float(c["espera_s"]))
+                        len(sufijos), float(c["stagger_s"]))
                 except (OSError, asyncio.TimeoutError, asyncio.IncompleteReadError) as e:
                     _cuenta["fallidas"] += 1
                     escritor.write(_respuesta(_codigo(e)))
@@ -356,7 +356,7 @@ async def _estado_periodico():
     while True:
         await asyncio.sleep(60)
         ahora = time.time()
-        vigencia = conf()["vigencia_s"]
+        vigencia = conf()["stick_s"]
         for k in [k for k, (_, t) in _ganador.items() if ahora - t > vigencia]:
             del _ganador[k]
         guardar_estado()

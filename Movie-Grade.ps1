@@ -535,7 +535,7 @@ defaultPref("places.history.enabled", true);
 defaultPref("signon.rememberSignons", true);
 // LibreWolf 156 ignores the exceptions when clearing on close and wiped the
 // email sessions. Clearing is done by Browser\launch_browser.pyw on open
-// and on close: everything goes except the domains in CONSERVAR. Tested on a copy.
+// and on close: everything goes except the domains in KEEP_SESSIONS. Tested on a copy.
 defaultPref("privacy.sanitize.sanitizeOnShutdown", false);
 defaultPref("privacy.clearOnShutdown.cookies", true);
 defaultPref("privacy.clearOnShutdown.cache", true);

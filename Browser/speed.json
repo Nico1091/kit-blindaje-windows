@@ -1,29 +1,29 @@
 {
-  "_que_es": "Browser speed parameters (keys stay in Spanish). 'objetivo' is the response-time target; 'carrera' is re-read by race.py on its own; the launcher passes 'navegador' to the browser when it opens.",
-  "objetivo": {
-    "respuesta_mediana_s": 1.5,
-    "respuesta_p90_s": 4.0,
-    "maximo_lentas_pct": 2.0,
-    "lenta_s": 10
+  "_about": "Browser speed parameters. 'target' is the response-time goal; 'race' is re-read by race.py on its own; the launcher passes 'browser' to the browser when it opens.",
+  "target": {
+    "median_response_s": 1.5,
+    "p90_response_s": 4.0,
+    "max_slow_pct": 2.0,
+    "slow_s": 10
   },
   "tor": {
-    "_que_es": "Tor entry: 'directo' (no bridge, the default here) or 'puente' (WebTunnel, needs ~/.smiley/bridges.sh with your own bridges). conflux_ux: 'throughput' or 'latency'. salida_paises / medio_paises: relay country codes (empty = any).",
-    "entrada": "directo",
+    "_about": "Tor entry: 'direct' (no bridge, the default here) or 'bridge' (WebTunnel, needs ~/.smiley/bridges.sh with your own bridges). conflux_ux: 'throughput' or 'latency'. exit_countries / middle_countries: relay country codes (empty = any).",
+    "entry": "direct",
     "conflux_ux": "throughput",
-    "salida_paises": [],
-    "medio_paises": []
+    "exit_countries": [],
+    "middle_countries": []
   },
-  "carrera": {
-    "activa": true,
-    "modo": "saludo",
-    "circuitos": 2,
-    "espera_s": 0.0,
-    "vigencia_s": 540,
-    "max_simultaneas": 3
+  "race": {
+    "enabled": true,
+    "mode": "hello",
+    "circuits": 2,
+    "stagger_s": 0.0,
+    "stick_s": 540,
+    "max_concurrent": 3
   },
-  "navegador": {
-    "lento_ms": 7000,
-    "atasco_ms": 12000,
-    "fuentes_ms": 200
+  "browser": {
+    "slow_ms": 7000,
+    "stall_ms": 12000,
+    "fonts_ms": 200
   }
 }

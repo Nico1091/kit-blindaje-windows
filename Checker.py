@@ -136,16 +136,6 @@ if escucha(9070):
     linea('"IsTor":true' in r.stdout, f"Circuit race (9070) exits through Tor: {r.stdout.strip() or 'still connecting'}")
 else:
     linea(False, "Circuit race (9070) is not listening: the browser uses Tor directly (slower, just as hidden)")
-try:
-    import json as _json
-    _v = _json.loads((Path.home() / "Security" / "Browser" / "speed.json").read_text(encoding="utf-8"))
-    _a = _v.get("ultimo_afinado") or {}
-    if _a:
-        _c = _a.get("con_la_elegida", {})
-        informe.append(f"[--] Last tuning ({_a.get('fecha')}): target {'MET' if _a.get('cumplido') else 'not met'}; "
-                       f"median response {_c.get('mediana_s')} s, p90 {_c.get('p90_s')} s, slow {_c.get('lentas_pct')} %")
-except (OSError, ValueError):
-    pass
 
 malos = sum(l.startswith("[!!]") for l in informe)
 informe.append(f"\nResult: {'ALL GOOD' if malos == 0 else f'{malos} item(s) to review'}")

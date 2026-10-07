@@ -4,13 +4,13 @@ Browser launcher.
 LibreWolf 156 ignores cookie exceptions when it clears data on close: it
 either clears everything (and mail sessions are lost) or nothing. This
 launcher does the clearing itself: before opening and after closing it
-deletes cookies and site data for ALL pages except those in the CONSERVAR
+deletes cookies and site data for ALL pages except those in the KEEP_SESSIONS
 list. Everything happens locally, on the profile files.
 
 Session cookies (no expiry date; some sites sign you in with one) never reach
 cookies.sqlite: they only survive inside the session file, which is why the
 browser restores the session on start. The launcher rewrites that file on
-close: a single tab with the smiley page and only the CONSERVAR cookies.
+close: a single tab with the smiley page and only the KEEP_SESSIONS cookies.
 
 Hidden IP ("always"): everything goes through Tor, accounts included. On open
 it starts, if missing, the Ubuntu Tor engine (127.0.0.1:9050, over WebTunnel
@@ -43,7 +43,7 @@ INICIO = "file:///" + os.path.join(os.path.dirname(os.path.abspath(__file__)), "
 MOZLZ4 = b"mozLz40\0"
 
 # Domains whose session is kept (and all their subdomains).
-CONSERVAR = (
+KEEP_SESSIONS = (
     # Mail and accounts
     "google.com", "youtube.com",
     "live.com", "outlook.com", "microsoftonline.com", "cloud.microsoft", "microsoft.com", "office.com",
@@ -63,7 +63,7 @@ def perfil():
 
 def se_conserva(host):
     h = host.lstrip(".").lower()
-    return any(h == d or h.endswith("." + d) for d in CONSERVAR)
+    return any(h == d or h.endswith("." + d) for d in KEEP_SESSIONS)
 
 
 def proceso_librewolf():
@@ -141,7 +141,7 @@ def esperar_apertura(prof, plazo=20):
 # IP always hidden ("always, not sometimes"): nothing goes directly to the Internet, not even
 # accounts; only this PC and the home network, which do not show your IP to anyone outside. On top
 # of that, the Windows firewall (Security\IP-Always-Hidden.ps1) stops LibreWolf from reaching the
-# Internet outside the tunnel. If False: CONSERVAR and DIRECTOS_EXTRA go direct.
+# Internet outside the tunnel. If False: KEEP_SESSIONS and DIRECTOS_EXTRA go direct.
 # Only exception (chosen by the user, site by site): those in direct.txt, which reject Tor, go out
 # directly through the protected local gate (direct_gate.py, 127.0.0.1:9060); the firewall stays
 # closed for LibreWolf, and third-party content those pages load still goes through Tor.
@@ -235,11 +235,11 @@ def encender_carrera():
 
 
 def parametros_navegador():
-    """Block "navegador" of speed.json: thresholds for the automatic new circuit and for fonts."""
-    datos = {"lento_ms": 7000, "atasco_ms": 12000, "fuentes_ms": 200}
+    """Block "browser" of speed.json: thresholds for the automatic new circuit and for fonts."""
+    datos = {"slow_ms": 7000, "stall_ms": 12000, "fonts_ms": 200}
     try:
         with open(VELOCIDAD, encoding="utf-8") as f:
-            datos.update(json.load(f).get("navegador") or {})
+            datos.update(json.load(f).get("browser") or {})
     except (OSError, ValueError):
         pass
     return {k: int(v) for k, v in datos.items()}
@@ -256,7 +256,7 @@ def directos_ruta():
     """Internet sites that go direct: none with IP_SIEMPRE_OCULTA."""
     if IP_SIEMPRE_OCULTA:
         return []
-    return sorted(set(CONSERVAR + DIRECTOS_EXTRA) - {"localhost", "127.0.0.1"})
+    return sorted(set(KEEP_SESSIONS + DIRECTOS_EXTRA) - {"localhost", "127.0.0.1"})
 
 
 def escribir_pac():
@@ -271,18 +271,18 @@ PREFS_PROPIAS = ("smiley.directos", "smiley.elegida", "smiley.lento_ms", "smiley
 
 def escribir_preferencias(prof):
     """Profile user.js: the sites in direct.txt (they go out through the protected direct gate, with their
-    own domains), those in chosen_exit.txt, the speed.json thresholds and, for the CONSERVAR sites, the
+    own domains), those in chosen_exit.txt, the speed.json thresholds and, for the KEEP_SESSIONS sites, the
     fingerprinting-protection exception for time and language (each tab's time and language are then
     set by the "Ubicacion oculta" block of librewolf.overrides.cfg)."""
-    cuentas = sorted(set(CONSERVAR + DIRECTOS_EXTRA) - {"localhost", "127.0.0.1"})
+    cuentas = sorted(set(KEEP_SESSIONS + DIRECTOS_EXTRA) - {"localhost", "127.0.0.1"})
     locales = [{"firstPartyDomain": d, "overrides": "-JSDateTimeUTC,-JSLocale"} for d in cuentas]
     nuevas = [
         f'user_pref("smiley.directos", {json.dumps(",".join(sorted(directos_protegidos())))});',
         f'user_pref("smiley.directos.grupos", {json.dumps(json.dumps(directos_protegidos()))});',
         f'user_pref("smiley.elegida", {json.dumps(",".join(elegidos()))});',
-        f'user_pref("smiley.lento_ms", {parametros_navegador()["lento_ms"]});',
-        f'user_pref("smiley.atasco_ms", {parametros_navegador()["atasco_ms"]});',
-        f'user_pref("gfx.downloadable_fonts.fallback_delay", {parametros_navegador()["fuentes_ms"]});',
+        f'user_pref("smiley.lento_ms", {parametros_navegador()["slow_ms"]});',
+        f'user_pref("smiley.atasco_ms", {parametros_navegador()["stall_ms"]});',
+        f'user_pref("gfx.downloadable_fonts.fallback_delay", {parametros_navegador()["fonts_ms"]});',
         'user_pref("privacy.fingerprintingProtection.granularOverrides", '
         f'{json.dumps(json.dumps(locales, separators=(",", ":")))});',
     ]
@@ -403,7 +403,7 @@ def limpiar_tras_cierre(prof):
 
 
 def limpiar(prof):
-    """Deletes cookies and site data except CONSERVAR. Returns what was deleted."""
+    """Deletes cookies and site data except KEEP_SESSIONS. Returns what was deleted."""
     borradas = 0
     db = os.path.join(prof, "cookies.sqlite")
     if os.path.exists(db):
@@ -425,11 +425,11 @@ def limpiar(prof):
         host = nombre.split("+++", 1)[1].split("^")[0].split("+")[0]
         partes = nombre.split("partitionKey=")
         clave = partes[1] if len(partes) > 1 else ""
-        if se_conserva(host) and (not clave or any(x in clave for x in CONSERVAR)):
+        if se_conserva(host) and (not clave or any(x in clave for x in KEEP_SESSIONS)):
             continue
         shutil.rmtree(d, ignore_errors=True)
         carpetas += 1
-    # Profile cache (lives in AppData\Local, not Roaming): the CONSERVAR sites' cache is kept, so they
+    # Profile cache (lives in AppData\Local, not Roaming): the KEEP_SESSIONS sites' cache is kept, so they
     # do not re-download everything through Tor on every start; the rest is deleted.
     local = os.path.join(os.path.expandvars(r"%LOCALAPPDATA%\librewolf\Profiles"), os.path.basename(prof), "cache2")
     limpiar_cache(local)
@@ -460,7 +460,7 @@ def sitio_de_clave(clave):
 
 
 def limpiar_cache(local):
-    """Deletes from cache2 everything not belonging to a CONSERVAR site (anything doubtful is deleted too)."""
+    """Deletes from cache2 everything not belonging to a KEEP_SESSIONS site (anything doubtful is deleted too)."""
     entradas = os.path.join(local, "entries")
     if not os.path.isdir(entradas):
         shutil.rmtree(local, ignore_errors=True)
@@ -544,11 +544,11 @@ def cookie_se_conserva(c):
     if not se_conserva(c.get("host", "")):
         return False
     clave = (c.get("originAttributes") or {}).get("partitionKey", "")
-    return not clave or any(x in clave for x in CONSERVAR)
+    return not clave or any(x in clave for x in KEEP_SESSIONS)
 
 
 def limpiar_sesion(prof):
-    """Leaves each session file with the smiley page and the CONSERVAR cookies."""
+    """Leaves each session file with the smiley page and the KEEP_SESSIONS cookies."""
     for f in glob.glob(os.path.join(prof, "sessionstore-backups", "recovery*")):
         os.remove(f)
     archivos = [os.path.join(prof, "sessionstore.jsonlz4")]

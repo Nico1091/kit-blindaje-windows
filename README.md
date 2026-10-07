@@ -37,9 +37,8 @@ The full guide, with every measure, its command and how to undo it, is in `PROTE
 
 - Defender stays on. The kit reinforces it; it does not replace it.
 - Windows telemetry is reduced, but Microsoft domains are not blocked: doing so can break updates and activation.
-- The Browser ships with direct entry to Tor. Bridges (WebTunnel) are optional: paste them into `~/.smiley/bridges.sh` inside WSL and set `"entrada": "puente"` in `Browser\speed.json`.
+- The Browser ships with direct entry to Tor. Bridges (WebTunnel) are optional: paste them into `~/.smiley/bridges.sh` inside WSL and set `"entry": "bridge"` in `Browser\speed.json`.
 - Sites that must go out without Tor go in `Browser\direct.txt`, and sites that block by country, in `Browser\chosen_exit.txt`.
-- Configuration keys inside `speed.json` and a few internal names are still in Spanish; the comments next to them explain each one.
 
 ## Warnings: consequences of using it
 

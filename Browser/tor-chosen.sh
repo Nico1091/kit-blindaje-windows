@@ -30,13 +30,14 @@ NODOS=${NODOS%,}
 for f in "$C"/tor-browser/cached-*; do
   [ -e "$f" ] && [ ! -e "$D/$(basename "$f")" ] && cp "$f" "$D/"
 done
-# Entry as in the main engine (speed.json, block "tor", key "entrada"): directo or puente.
-ENTRADA=$(python3 -c "import json; print(json.load(open('__WINHOME__/Security/Browser/speed.json', encoding='utf-8')).get('tor', {}).get('entrada', 'puente'))" 2> /dev/null || echo puente)
-escribir_torrc() {  # $1 = how many bridges to use (only with entry "puente"), in puentes.txt order
+# Entry as in the main engine (speed.json, block "tor", key "entry"): direct or bridge.
+ENTRADA=$(python3 -c "import json; print(json.load(open('__WINHOME__/Security/Browser/speed.json', encoding='utf-8')).get('tor', {}).get('entry', 'bridge'))" 2> /dev/null || echo bridge)
+case "$ENTRADA" in directo) ENTRADA=direct ;; puente) ENTRADA=bridge ;; esac
+escribir_torrc() {  # $1 = how many bridges to use (only with entry "bridge"), in puentes.txt order
 {
   echo "DataDirectory $D"
   echo "SocksPort 127.0.0.1:$PUERTO KeepAliveIsolateSOCKSAuth"
-  if [ "$ENTRADA" = "directo" ]; then
+  if [ "$ENTRADA" = "direct" ]; then
     echo "UseBridges 0"
   else
     echo "UseBridges 1"
@@ -65,7 +66,7 @@ TOR=$!
     kill -0 "$TOR" 2> /dev/null || exit 0
     grep -q 'Bootstrapped 100%' "$D/tor.log" && exit 0
   done
-  if [ "$ENTRADA" != "directo" ]; then
+  if [ "$ENTRADA" != "direct" ]; then
     escribir_torrc 6
     kill -HUP "$TOR" 2> /dev/null
   fi

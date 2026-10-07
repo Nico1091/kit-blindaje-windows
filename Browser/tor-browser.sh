@@ -3,13 +3,13 @@
 # Security\Browser\tor_watchdog.pyw (task "Browser - Tor always").
 # Windows copy: Security\Browser\tor-browser.sh; installed as ~/.smiley/tor-browser.sh.
 #
-# Entry is set in Security\Browser\speed.json, block "tor" (keys stay in Spanish):
-#   "entrada": "puente"  -> WebTunnel bridge (script default): your ISP only sees HTTPS to an ordinary page.
-#              "directo" -> no bridge: your ISP sees that you use Tor, not what you visit. Legal in most
+# Entry is set in Security\Browser\speed.json, block "tor":
+#   "entry": "bridge"  -> WebTunnel bridge (script default): your ISP only sees HTTPS to an ordinary page.
+#            "direct"  -> no bridge: your ISP sees that you use Tor, not what you visit. Legal in most
 #                           countries, and often faster when your bridges are far from Tor's guards.
 #   "conflux_ux": "throughput" (more bandwidth) | "latency" (less waiting)
-#   "salida_paises" / "medio_paises": country codes for exit / middle relays (empty = any).
-# Bridge maintenance (renew, rescue) only runs with "puente".
+#   "exit_countries" / "middle_countries": country codes for exit / middle relays (empty = any).
+# Bridge maintenance (renew, rescue) only runs with "bridge".
 C=$HOME/.smiley
 T=$C/tor-browser/Browser/TorBrowser/Tor
 D=$C/tor-browser
@@ -26,15 +26,16 @@ pgrep -u "$(id -u)" -f "[t]or -f $D/torrc" > /dev/null && exit 0
 leer() {  # $1 = key in the "tor" block, $2 = default value
   python3 -c "import json; print(json.load(open('$VEL', encoding='utf-8')).get('tor', {}).get('$1', '$2'))" 2> /dev/null || echo "$2"
 }
-ENTRADA=$(leer entrada puente)
+ENTRADA=$(leer entry bridge)
+case "$ENTRADA" in directo) ENTRADA=direct ;; puente) ENTRADA=bridge ;; esac
 UX=$(leer conflux_ux throughput)
 paises() {  # $1 = key holding a list of country codes -> "{us},{ca}" (empty = any country)
   python3 -c "import json; print(','.join('{%s}' % p.lower() for p in json.load(open('$VEL', encoding='utf-8')).get('tor', {}).get('$1', [])))" 2> /dev/null
 }
-SALIDA=$(paises salida_paises)
-MEDIO=$(paises medio_paises)
+SALIDA=$(paises exit_countries)
+MEDIO=$(paises middle_countries)
 
-# $1 = how many bridges to use (only with entry "puente"), in puentes.txt order.
+# $1 = how many bridges to use (only with entry "bridge"), in puentes.txt order.
 escribir_torrc() {
   {
     echo "DataDirectory $D"
@@ -42,18 +43,18 @@ escribir_torrc() {
     # while you keep using it; without this, a long session (e.g. Outlook) would change IP.
     echo "SocksPort 127.0.0.1:$PUERTO KeepAliveIsolateSOCKSAuth"
     echo "AvoidDiskWrites 1"
-    # Tor's country database: without it, salida_paises / medio_paises would match no relay.
+    # Tor's country database: without it, exit_countries / middle_countries would match no relay.
     echo "GeoIPFile $C/tor-browser/Browser/TorBrowser/Data/Tor/geoip"
     echo "GeoIPv6File $C/tor-browser/Browser/TorBrowser/Data/Tor/geoip6"
     echo "PidFile $D/tor.pid"
     echo "Log notice file $D/tor.log"
     echo "ConfluxEnabled 1"
     echo "ConfluxClientUX $UX"
-    # Route geography (speed.json, tor.salida_paises / tor.medio_paises; empty = any).
+    # Route geography (speed.json, tor.exit_countries / tor.middle_countries; empty = any).
     [ -n "$SALIDA" ] && echo "ExitNodes $SALIDA"
     [ -n "$MEDIO" ] && echo "MiddleNodes $MEDIO"
     { [ -n "$SALIDA" ] || [ -n "$MEDIO" ]; } && echo "StrictNodes 1"
-    if [ "$ENTRADA" = "directo" ]; then
+    if [ "$ENTRADA" = "direct" ]; then
       echo "UseBridges 0"
     else
       echo "UseBridges 1"
@@ -77,15 +78,15 @@ TOR=$!
     kill -0 "$TOR" 2> /dev/null || exit 0
     if grep -q 'Bootstrapped 100%' "$D/tor.log"; then
       curl -s -o /dev/null -m 60 --socks5-hostname "127.0.0.1:$PUERTO" https://check.torproject.org/api/ip
-      [ "$ENTRADA" = "directo" ] || "$C/bridges.sh" renovar-por "$PUERTO"
+      [ "$ENTRADA" = "direct" ] || "$C/bridges.sh" renovar-por "$PUERTO"
       exit 0
     fi
-    if [ "$i" -eq 15 ] && [ "$ENTRADA" != "directo" ]; then
+    if [ "$i" -eq 15 ] && [ "$ENTRADA" != "direct" ]; then
       escribir_torrc 6
       kill -HUP "$TOR" 2> /dev/null
     fi
   done
-  if [ "$ENTRADA" != "directo" ] && "$C/bridges.sh" rescatar; then
+  if [ "$ENTRADA" != "direct" ] && "$C/bridges.sh" rescatar; then
     escribir_torrc 1
     kill -HUP "$TOR" 2> /dev/null
   fi
