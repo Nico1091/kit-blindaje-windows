@@ -1,25 +1,25 @@
-# Guía de comandos
+# Command guide
 
-Cada script del kit, qué hace, si cambia el equipo y qué significa cada opción. Todos se ejecutan desde PowerShell abierto como administrador, situado en la carpeta del kit:
+Every script in the kit, what it does, whether it changes the PC and what each option means. All of them run from PowerShell opened as administrator, in the kit folder:
 
 ```powershell
 cd $env:USERPROFILE\Security
 Set-ExecutionPolicy -Scope Process Bypass
 ```
 
-La segunda línea permite ejecutar los scripts solo en esa ventana; al cerrarla, la política vuelve a ser la de siempre.
+The second line allows running the scripts in that window only; once it is closed, the policy goes back to normal.
 
-Regla general: los scripts que tienen la opción `-Apply` no cambian nada si no se la pasa, solo muestran lo que harían. Los que tienen `-Revert` deshacen sus propios cambios a partir del respaldo que guardaron al aplicarlos.
+General rule: scripts that have the `-Apply` option change nothing unless it is passed; they only show what they would do. Those with `-Revert` undo their own changes from the backup they saved when applying.
 
 ---
 
-## Blindaje principal
+## Main hardening
 
 ### Run-All.ps1
-Ejecuta el blindaje completo en el orden correcto: comprueba que haya internet antes de empezar, audita, aplica las nueve capas de `Harden.ps1`, registra el punto de restauración diario y pregunta al final si sigue habiendo conexión. Es lo que corre el botón **HARDEN MY PC**.
+Runs the full hardening in the right order: checks there is Internet before starting, audits, applies the nine layers of `Harden.ps1`, registers the daily restore point and asks at the end whether the connection still works. This is what the **HARDEN MY PC** button runs.
 
-- `-DryRun`: recorre todo el proceso sin cambiar nada. Equivale al botón **WHAT WOULD IT BLOCK**.
-- `-RevertMinutes <n>`: minutos que espera el reversor antes de deshacer los cambios de red si nadie confirma la conexión. Por defecto, 10.
+- `-DryRun`: goes through the whole process without changing anything.
+- `-RevertMinutes <n>`: minutes the auto-revert waits before undoing network changes if nobody confirms the connection. Default: 10.
 
 ```powershell
 .\Run-All.ps1 -DryRun
@@ -27,18 +27,18 @@ Ejecuta el blindaje completo en el orden correcto: comprueba que haya internet a
 ```
 
 ### Harden.ps1
-Aplica el blindaje por capas, con respaldo previo, comprobación de conectividad después de cada capa y reversor temporizado. Sin `-Apply` no cambia nada.
+Applies the hardening by layers, with a prior backup, a connectivity check after each layer and a timed auto-revert. Without `-Apply` it changes nothing.
 
-Las nueve capas son: `defender` (Defender al máximo, acceso controlado a carpetas, reglas de reducción de la superficie de ataque), `ports` (cortafuegos estricto y cierre de WinRM y del servidor SMB), `locks` (UAC al máximo, Windows Script Host apagado, PowerShell 2 retirado, sin ejecución automática de USB), `privacy` (telemetría al mínimo, ubicación cerrada), `stealth` (el equipo deja de anunciarse en la red y de responder al ping), `vm` (las máquinas virtuales dejan de ver la red local), `drivers` (bloqueo de controladores vulnerables que usa el ransomware), `credentials` (sin contraseñas en claro en memoria, solo TLS moderno) y `ransomware` (carpetas protegidas y puntos de restauración).
+The nine layers are: `defender` (Defender at maximum, controlled folder access, attack surface reduction rules), `ports` (strict firewall and closing WinRM and the SMB server), `locks` (UAC at maximum, Windows Script Host off, PowerShell 2 removed, no USB autorun), `privacy` (telemetry at minimum, location closed), `stealth` (the PC stops announcing itself on the network and answering ping), `vm` (virtual machines stop seeing the local network), `drivers` (blocks vulnerable drivers used by ransomware), `credentials` (no plain-text passwords in memory, modern TLS only) and `ransomware` (protected folders and restore points).
 
-- `-Apply`: aplica de verdad.
-- `-Layers <lista>`: aplica solo las capas indicadas, separadas por comas.
-- `-RevertMinutes <n>`: plazo del reversor de red. Por defecto, 10.
-- `-NoPrompt`: no pide confirmaciones intermedias.
-- `-RandomizeMAC`: además cambia la MAC del Wi-Fi. Desconecta y reconecta la red.
-- `-CutMicrosoftProbe`: apaga la comprobación de conectividad de Windows. La ganancia de privacy es mínima y el ícono de red mostrará «sin internet» aunque navegue bien.
-- `-Orchestrated`: lo usa `Run-All.ps1` al llamarlo; no hace falta escribirlo a mano.
-- `-BlockOutbound`: está declarada pero el código no la usa todavía. No tiene efecto.
+- `-Apply`: really applies.
+- `-Layers <list>`: applies only the given layers, comma-separated.
+- `-RevertMinutes <n>`: network auto-revert delay. Default: 10.
+- `-NoPrompt`: does not ask for intermediate confirmations.
+- `-RandomizeMAC`: also changes the Wi-Fi MAC. Disconnects and reconnects the network.
+- `-CutMicrosoftProbe`: turns off Windows' connectivity check. The privacy gain is minimal and the network icon will show "no Internet" even while browsing works.
+- `-Orchestrated`: used by `Run-All.ps1` when calling it; no need to type it by hand.
+- `-BlockOutbound`: declared but not used by the code yet. It has no effect.
 
 ```powershell
 .\Harden.ps1
@@ -47,24 +47,26 @@ Las nueve capas son: `defender` (Defender al máximo, acceso controlado a carpet
 ```
 
 ### Restore.ps1
-Deshace lo que hizo `Harden.ps1`. Sin opciones, muestra los respaldos y restaura el último por completo: cortafuegos, registro y servicios.
+Undoes what `Harden.ps1` did. With no options, it lists the backups and fully restores the latest one: firewall, registry and services.
 
-- `-Emergency`: restaura solo la red, rápido y sin preguntas. Es lo que corre el botón **IF I LOSE INTERNET**.
-- `-ListBackups`: muestra los respaldos disponibles sin restaurar ninguno.
-- `-Backup <nombre>`: restaura un respaldo concreto.
-- `-NoPrompt`: no pide confirmación.
+- `-Emergency`: restores only the network, fast and without questions. This is what the **IF I LOSE INTERNET** button runs.
+- `-ListBackups`: lists the available backups without restoring any.
+- `-Backup <name>`: restores a specific backup.
+- `-NoPrompt`: does not ask for confirmation.
 
 ```powershell
 .\Restore.ps1 -ListBackups
-.\Restore.ps1 -Backup <nombre>
+.\Restore.ps1 -Backup <name>
 .\Restore.ps1 -Emergency
 ```
 
 ### Audit.ps1
-Revisa el estado de seguridad, lo puntúa por áreas y escribe un informe en `Informes\`. Solo lee: nunca cambia nada. Es lo que corre **HOW IS MY PC**.
+Reviews the security state, scores it by area and writes a report to `Reports\`. Read only: it never changes anything. This is what **HOW IS MY PC** runs.
 
-- `-Cfa`: añade el registro de bloqueos del acceso controlado a carpetas.
-- `-Days <n>`: cuántos días hacia atrás revisa ese registro.
+- `-Cfa`: adds the controlled folder access block log.
+- `-Days <n>`: how many days back to review that log.
+
+**WHAT WOULD IT BLOCK** runs `Audit.ps1 -Cfa -Days 14` and then offers to switch folder protection from audit to block.
 
 ```powershell
 .\Audit.ps1
@@ -72,22 +74,22 @@ Revisa el estado de seguridad, lo puntúa por áreas y escribe un informe en `In
 ```
 
 ### Install.ps1
-Registra la única tarea programada del kit: un punto de restauración diario a las 13:00. No instala vigilancia ni procesos en segundo plano.
+Registers the kit's only scheduled task: a daily restore point at 13:00. It installs no monitoring or background processes.
 
-- `-Remove`: elimina esa tarea.
+- `-Remove`: deletes that task.
 
 ---
 
-## Privacidad y telemetría
+## Privacy and telemetry
 
 ### Movie-Grade.ps1
-Protección local de consumo casi nulo. Instala Unbound para resolver los nombres de dominio en el propio equipo, consultando directamente a los servidores raíz sin ningún DNS de terceros. También pone una MAC aleatoria por red Wi-Fi y guarda los informes de error en el equipo en lugar de enviarlos. Sin `-Apply` no cambia nada. No bloquea dominios de Microsoft: la activación, la Tienda y Windows Update siguen funcionando.
+Local protection with almost no resource use. Installs Unbound to resolve domain names on the PC itself, querying the root servers directly with no third-party DNS. It also sets a random MAC per Wi-Fi network and keeps error reports on the PC instead of sending them. Without `-Apply` it changes nothing. It does not block Microsoft domains: activation, the Store and Windows Update keep working.
 
-- `-Apply`: aplica, con reversor de red.
-- `-Revert`: deja la red y los ajustes como estaban.
-- `-DnsOnly`: solo reescribe la configuración de Unbound, sin tocar MAC ni DNS del adaptador.
-- `-RevertMinutes <n>`: plazo del reversor. Por defecto, 10.
-- `-NetworkOnly` y `-Auto`: los usa el reversor automático. No hace falta escribirlos.
+- `-Apply`: applies, with network auto-revert.
+- `-Revert`: puts the network and settings back as they were.
+- `-DnsOnly`: only rewrites the Unbound configuration, without touching the MAC or the adapter's DNS.
+- `-RevertMinutes <n>`: auto-revert delay. Default: 10.
+- `-NetworkOnly` and `-Auto`: used by the automatic auto-revert. No need to type them.
 
 ```powershell
 .\Movie-Grade.ps1
@@ -96,95 +98,95 @@ Protección local de consumo casi nulo. Instala Unbound para resolver los nombre
 ```
 
 ### Remaining-Telemetry.ps1
-Apaga la telemetría que queda después del blindaje, usando solo interruptores oficiales. En el usuario: Office, consejos y sugerencias de Windows, PowerShell 7, .NET, VS Code y Claude Code. En el equipo: políticas de Edge y tareas de diagnóstico. No bloquea dominios ni toca la activación, la Tienda ni Windows Update. Sin `-Apply` no cambia nada.
+Turns off the telemetry left after hardening, using only official switches. Per user: Office, Windows tips and suggestions, PowerShell 7, .NET, VS Code and Claude Code. Per machine: Edge policies and diagnostic tasks. It does not block domains or touch activation, the Store or Windows Update. Without `-Apply` it changes nothing.
 
 - `-Apply` / `-Revert`.
-- `-UserOnly`: aplica solo la parte del usuario, que no necesita administrador.
+- `-UserOnly`: applies only the per-user part, which does not need administrator rights.
 
 ### Windows-Services.ps1
-Apaga servicios que casi nadie usa: mapas sin conexión, rastreo de vínculos en red, asistente de compatibilidad de programas y el indexador de búsqueda, que guarda un índice con el nombre y el contenido de los archivos. Sin `-Apply` no cambia nada.
+Turns off services almost nobody uses: offline maps, distributed link tracking, the program compatibility assistant and the search indexer, which keeps an index with the names and contents of your files. Without `-Apply` it changes nothing.
 
 - `-Apply` / `-Revert`.
 
 ### Disable-Microsoft.ps1
-Apaga la IA de Windows, la telemetría restante y los extras de Office sin tocar Word ni sus parches de seguridad. El estado anterior queda respaldado.
+Turns off Windows AI, remaining telemetry and Office extras without touching Word or its security patches. The previous state is backed up.
 
-- `-Revert`: devuelve lo apagado.
+- `-Revert`: restores what was turned off.
 
 ### Disable-Edge.ps1
-Deja Edge inservible sin desinstalarlo: cuando algo intenta abrirlo, se abre el Browser. WebView2 no se toca, porque lo usan otras aplicaciones.
+Makes Edge unusable without uninstalling it: when something tries to open it, the Browser opens instead. WebView2 is left alone, because other applications use it.
 
-- `-Revert`: devuelve Edge.
+- `-Revert`: brings Edge back.
 
 ### Paranoia.ps1
-Cierra lo que todavía salía del equipo hacia Microsoft, hacia internet o hacia la red local: historial de actividad, portapapeles en la nube y servicios similares. No toca la telemetría base ni bloquea dominios de Microsoft.
+Closes what was still leaving the PC towards Microsoft, the Internet or the local network: activity history, cloud clipboard and similar services. It does not touch base telemetry or block Microsoft domains.
 
-- `-Revert`: devuelve el estado original desde su respaldo.
+- `-Revert`: restores the original state from its backup.
 
 ---
 
-## Red y cortafuegos
+## Network and firewall
 
 ### Setup-Firewall.ps1
-Configura el cortafuegos completo en una sola pasada: entrada cerrada, reglas sobrantes desactivadas, asistencia remota apagada y el candado del Browser. Exporta la configuración antes de tocar nada y se puede repetir sin daño. Es lo que corre **SET UP FIREWALL**.
+Configures the whole firewall in one pass: inbound closed, surplus rules disabled, remote assistance off and the Browser lock. It exports the configuration before touching anything and can be repeated safely. This is what **SET UP FIREWALL** runs.
 
-- `-Revert`: importa la configuración exportada antes del cambio.
-- `-NoPause`: no espera una tecla al terminar.
+- `-Revert`: imports the configuration exported before the change.
+- `-NoPause`: does not wait for a key press at the end.
 
 ### Network-Blocker.ps1
-Corta anuncios y dominios de malware en el DNS local (Unbound) para todo el equipo. No incluye dominios de Microsoft ni los sitios cuya sesión conserva el Browser. Requiere el nivel película aplicado.
+Blocks ads and malware domains in the local DNS (Unbound) for the whole PC. It does not include Microsoft domains or the sites whose session the Browser keeps. Requires movie-grade protection to be applied.
 
-- `-List <archivo>`: lista de dominios a bloquear, en formato de Unbound. Es obligatoria al aplicar.
-- `-Revert`: quita el bloqueo.
+- `-List <file>`: list of domains to block, in Unbound format. Required when applying.
+- `-Revert`: removes the block.
 
 ### IP-Always-Hidden.ps1
-Pone un candado en el cortafuegos: LibreWolf solo puede hablar con el propio equipo, donde está la entrada a Tor, y con la red local. Si un ajuste fallara o el navegador intentara una salida directa, el cortafuegos la corta y la IP sigue oculta.
+Puts a lock on the firewall: LibreWolf can only talk to the PC itself, where the Tor entry is, and to the local network. If a setting failed or the browser tried to go out directly, the firewall cuts it and the IP stays hidden.
 
-- `-Revert`: quita el candado.
+- `-Revert`: removes the lock.
 
 ---
 
 ## Browser
 
 ### Setup-Browser.ps1
-Deja el Browser completo en una sola pasada: instala LibreWolf, aplica su configuración y el ícono de la smiley, paraliza y redirige Edge, copia los motores de Tor a WSL, deja la salida por Tor siempre encendida y pone el candado del cortafuegos. Es lo que corre **SET UP BROWSER**.
+Sets up the whole Browser in one pass: installs LibreWolf, applies its configuration and the smiley icon, disables and redirects Edge, copies the Tor engines to WSL, keeps the Tor exit always on and sets the firewall lock. This is what **SET UP BROWSER** runs.
 
-- `-NoPause`: no espera una tecla al terminar.
+- `-NoPause`: does not wait for a key press at the end.
 
 ### Smiley-Browser.ps1
-Pone el ícono de la smiley en la ventana del Browser y hace que la búsqueda del menú Inicio no envíe lo escrito a Bing.
+Puts the smiley icon on the Browser window and stops Start menu search from sending what you type to Bing.
 
-- `-Revert`: lo quita.
+- `-Revert`: removes it.
 
 ### Update-LibreWolf.ps1
-Descarga la última versión oficial de LibreWolf y vuelve a colocar lo propio que el instalador puede borrar: la configuración del Browser, las políticas y los íconos. Es lo que corre **UPDATE BROWSER**.
+Downloads the latest official LibreWolf release and puts back the custom parts the installer may delete: the Browser configuration, the policies and the icons. This is what **UPDATE BROWSER** runs.
 
-- `-NoPause`: no espera una tecla al terminar.
+- `-NoPause`: does not wait for a key press at the end.
 
 ### Checker.py
-Verifica que todo siga en pie: DNS local, motores de Tor, puerta directa, carrera de circuitos y salida real por Tor. Solo lee. Es lo que corre **CHECK MY PROTECTION**.
+Verifies that everything is still in place: local DNS, Tor engines, direct gate, circuit race and real exit through Tor. Read only. This is what **CHECK MY PROTECTION** runs.
 
 ```powershell
 python .\Checker.py
 ```
 
-### Archivos de configuración del Browser
-- `Browser\launch_browser.pyw`, lista `CONSERVAR`: dominios cuya sesión se mantiene al cerrar.
-- `Browser\direct.txt`: sitios que rechazan a toda la red Tor y salen con la IP real. Solo esos sitios.
-- `Browser\chosen_exit.txt`: sitios que bloquean por país; salen por Tor, pero solo por relevos de los países de la línea `paises:`.
-- `Browser\speed.json`: entrada a Tor (`directo` o `puente`) y parámetros de velocidad.
+### Browser configuration files
+- `Browser\launch_browser.pyw`, list `CONSERVAR`: domains whose session is kept on close.
+- `Browser\direct.txt`: sites that reject the whole Tor network and go out with your real IP. Only those sites.
+- `Browser\chosen_exit.txt`: sites that block by country; they go through Tor, but only through relays in the countries on the `countries:` line.
+- `Browser\speed.json`: Tor entry (`directo` or `puente`) and speed parameters. Its keys are in Spanish; each block has a `_que_es` note in English.
 
-Después de cambiar cualquiera de ellos, cierre y abra el Browser.
+After changing any of them, close and reopen the Browser.
 
 ---
 
-## Diagnóstico
+## Diagnostics
 
 ### Find-Backdoors.ps1
-Busca puertas traseras y mecanismos de persistencia: cuentas, claves SSH autorizadas, paquetes de autenticación, entradas de inicio, tareas y servicios. Solo lee. Deja el informe en `Informes\`. Como administrador ve todo; sin permisos se salta lo protegido.
+Looks for backdoors and persistence mechanisms: accounts, authorized SSH keys, authentication packages, startup entries, tasks and services. Read only. Leaves its report in `Reports\`. As administrator it sees everything; without rights it skips what is protected.
 
 ### Audit-Admin.ps1
-Repite la auditoría de firmas digitales incluyendo los procesos protegidos del sistema, que sin permisos no muestran su ruta. Deja el informe en `Informes\`.
+Repeats the digital-signature audit including the system's protected processes, which do not show their path without rights. Leaves its report in `Reports\`.
 
 ### Migrate-Launchers.ps1
-Sustituye lanzadores `.vbs` conocidos por accesos directos que no necesitan Windows Script Host, para que la capa `locks` pueda apagarlo sin romperlos. Si no encuentra esos lanzadores, no hace nada. Sin `-Apply` solo muestra lo que haría.
+Replaces known `.vbs` launchers with shortcuts that do not need Windows Script Host, so the `locks` layer can turn it off without breaking them. If it finds none of those launchers, it does nothing. Without `-Apply` it only shows what it would do.

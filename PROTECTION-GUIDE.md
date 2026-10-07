@@ -1,88 +1,80 @@
 ---
-titulo: Guía de protección del equipo
-equipo: Windows 11 Home o Pro
-version: 1.3
-fecha: 2026-10-04
+title: PC protection guide
+system: Windows 11 Home or Pro
+version: 1.4
 ---
 
-# Guía de protección del equipo
+# PC protection guide
 
-## 1. Propósito y alcance
+## 1. Purpose and scope
 
-Este documento reúne en un solo lugar la configuración de seguridad y privacy aplicada al equipo entre el 26 de agosto y el 2 de octubre de 2026: la reducción de la telemetría de Windows y de los programas instalados, el tratamiento local de los informes de error, el cortafuegos, la resolución de nombres sin terceros y el navegador «Browser», que sale a internet únicamente por la red Tor. Para cada medida se indica qué hace, por qué se tomó, el comando exacto que la aplica y cómo se deshace. Al final se recogen los errores cometidos durante la construcción, porque explican varias decisiones que de otro modo parecerían arbitrarias.
+This document gathers in one place the security and privacy configuration the kit applies: reducing the telemetry of Windows and installed programs, keeping error reports local, the firewall, name resolution with no third parties, and the "Browser", which reaches the Internet only through the Tor network. For each measure it states what it does, why it was chosen, the exact command that applies it and how to undo it. The last part collects the mistakes made while building it, because they explain several decisions that would otherwise look arbitrary.
 
-Todo el sistema vive en `%USERPROFILE%\Security\`. Cada script trabaja en simulacro o guarda un respaldo antes de cambiar nada, y casi todos aceptan `-Revert`. Los respaldos están en `Security\Backups\`.
+The whole system lives in `%USERPROFILE%\Security\`. Every script works as a dry run or saves a backup before changing anything, and almost all accept `-Revert`. Backups are in `Security\Backups\`.
 
-## 2. Principios que gobiernan la configuración
+## 2. Principles behind the configuration
 
-Las decisiones de este documento obedecen a seis reglas fijadas por el propietario. Ninguna información debe salir hacia servicios de terceros: por eso se rechazaron los DNS de Quad9 y Mullvad, y también cualquier VPN, proxy o bloqueador que dependa de un servidor ajeno. Nada debe consumir recursos en segundo plano sin autorización expresa; la vigilancia periódica que existió en agosto se eliminó por completo a petición suya. Los informes de error se conservan en el propio equipo, para que él decida si los envía. No se bloquean dominios de Microsoft ni se fuerza la telemetría por debajo de lo que Windows Home admite, porque una medida así ya le costó un bloqueo de Windows. La dirección IP debe quedar oculta siempre, sin excepciones, y el navegador no puede tener un camino directo de reserva. Por último, todo se entrega como un botón de doble clic en `Downloads\`, no como una instrucción que haya que teclear.
+The decisions in this document follow six rules. No information should go out to third-party services: that is why third-party DNS resolvers (Quad9, Mullvad and similar) were rejected, as was any VPN, proxy or blocker that depends on someone else's server. Nothing should use resources in the background without explicit permission. Error reports are kept on the PC itself, so the user decides whether to send them. Microsoft domains are not blocked and telemetry is not forced below what Windows Home allows, because a measure like that can get Windows activation or the Microsoft account blocked. The IP address must always stay hidden in the Browser, with no exceptions, and the browser cannot have a direct fallback path. Finally, everything is delivered as a double-click button, not as an instruction that has to be typed.
 
-Hay un límite que conviene tener presente desde el principio: en Windows 11 Home la telemetría no puede llevarse a cero. El valor `AllowTelemetry = 0` está escrito en el registro, pero solo lo respetan las ediciones Enterprise y Education; en Home el mínimo efectivo es «Requerido». Lo que sí se consigue es apagar los servicios que la recogen y todo lo opcional.
+There is a limit worth keeping in mind from the start: on Windows 11 Home, telemetry cannot be taken to zero. The value `AllowTelemetry = 0` is written to the registry, but only the Enterprise and Education editions honour it; on Home the effective minimum is "Required". What can be done is to turn off the services that collect it and everything optional.
 
-## 3. Puesta en marcha rápida
+## 3. Quick start
 
-Para dejar el equipo configurado desde cero, o repararlo tras una actualización grande de Windows, se pulsan los buttons en este orden. Cada uno se eleva solo y puede repetirse sin daño.
+To set up the PC from scratch, or repair it after a major Windows update, press the buttons in this order. Each one elevates itself and can be repeated safely.
 
-1. `HARDEN MY PC.bat`: endurecimiento base en nueve capas (Defender, ports, locks, privacy, stealth, máquinas virtuales, controladores, credentials y ransomware).
-2. `MOVIE-GRADE PROTECTION.bat`: DNS local con Unbound, informes de error en local, MAC aleatoria por red.
-3. `SET UP FIREWALL.bat` (nuevo): todo el cortafuegos en una pasada.
-4. `SET UP BROWSER.bat` (nuevo): navegador, Edge paralizado, Tor siempre encendido y candado.
-5. `CHECK MY PROTECTION.bat`: verificación final en unos treinta segundos.
+1. `HOW IS MY PC.bat`: read-only audit, to see the starting point.
+2. `HARDEN MY PC.bat`: base hardening in nine layers (Defender, ports, locks, privacy, stealth, virtual machines, drivers, credentials and ransomware).
+3. `MOVIE-GRADE PROTECTION.bat`: local DNS with Unbound, local error reports, random MAC per network.
+4. `SET UP FIREWALL.bat`: the whole firewall in one pass.
+5. `SET UP BROWSER.bat`: browser, Edge disabled, Tor always on and the firewall lock.
+6. `CHECK MY PROTECTION.bat`: final check in about thirty seconds.
 
-Si tras cualquiera de ellos se pierde internet, `IF I LOSE INTERNET.bat` devuelve la red al estado del respaldo. Los dos scripts nuevos llevan además su propio reversor de diez minutos.
+If Internet is lost after any of them, `IF I LOSE INTERNET.bat` puts the network back to the backed-up state. The firewall and Browser scripts also carry their own ten-minute auto-revert.
 
-## 4. Telemetría de Windows y de los programas
+## 4. Windows and program telemetry
 
-### 4.1 Servicios de recogida
+### 4.1 Collection services
 
-`DiagTrack` (experiencia del usuario y telemetría conectadas) y `dmwappushservice` están detenidos y deshabilitados. Se comprueba con:
+`DiagTrack` (Connected User Experiences and Telemetry) and `dmwappushservice` are stopped and disabled. Check with:
 
 ```powershell
 Get-Service DiagTrack, dmwappushservice | Select-Object Name, Status, StartType
 ```
 
-`Windows-Services.ps1` apagó además `MapsBroker` (mapas sin conexión), `TrkWks` (seguimiento de vínculos), `PcaSvc` (asistente de compatibilidad, que informa a Microsoft) y `WSearch` (el indexador de búsqueda, cuyo índice de 1,7 GB se borró). El indexador se verificó como auténtico de Microsoft; se apagó por consumo, no por ser malicioso. Una actualización grande puede reactivarlo: `HOW IS MY PC.bat` avisa si ocurre y basta repetir el script.
+`Windows-Services.ps1` also turns off `MapsBroker` (offline maps), `TrkWks` (distributed link tracking), `PcaSvc` (compatibility assistant, which reports to Microsoft) and `WSearch` (the search indexer, whose index can take several gigabytes). The indexer is genuine Microsoft software; it is turned off for resource use and privacy, not because it is malicious. A major update may re-enable it: `HOW IS MY PC.bat` warns when that happens, and it is enough to run the script again.
 
 ```powershell
 Stop-Service WSearch -Force; Set-Service WSearch -StartupType Disabled
 ```
 
-### 4.2 Telemetría restante (`Remaining-Telemetry.ps1`)
+### 4.2 Remaining telemetry (`Remaining-Telemetry.ps1`)
 
-Este script apagó 42 elementos. En Office, las políticas `sendtelemetry=3`, `qmenable=0`, los comentarios y el agente OSM, más `usercontentdisabled=2` y `downloadcontentdisabled=2` en `HKCU\Software\Policies\Microsoft\Office\16.0\common\privacy`. En Edge, dieciséis políticas en `HKLM\SOFTWARE\Policies\Microsoft\Edge`, entre ellas `DiagnosticData=0`, `PersonalizationReportingEnabled=0`, `CopilotPageContext=0` y `TrackingPrevention=3`. Cinco tareas programadas de recogida: `MareBackup`, `Autochk\Proxy`, `Device`, `Device User` y `MapsToastTask`. En el usuario, las variables `POWERSHELL_TELEMETRY_OPTOUT=1` y `DOTNET_CLI_TELEMETRY_OPTOUT=1`; en VS Code, `telemetry.telemetryLevel = off`; en Claude Code, `DISABLE_TELEMETRY` y `DISABLE_ERROR_REPORTING`. Se revierte con `Remaining-Telemetry.ps1 -Revert`.
+This script turns off about forty items. In Office, the policies `sendtelemetry=3`, `qmenable=0`, feedback and the OSM agent, plus `usercontentdisabled=2` and `downloadcontentdisabled=2` in `HKCU\Software\Policies\Microsoft\Office\16.0\common\privacy`. In Edge, sixteen policies in `HKLM\SOFTWARE\Policies\Microsoft\Edge`, among them `DiagnosticData=0`, `PersonalizationReportingEnabled=0`, `CopilotPageContext=0` and `TrackingPrevention=3`. Five collection scheduled tasks: `MareBackup`, `Autochk\Proxy`, `Device`, `Device User` and `MapsToastTask`. Per user, the variables `POWERSHELL_TELEMETRY_OPTOUT=1` and `DOTNET_CLI_TELEMETRY_OPTOUT=1`; in VS Code, `telemetry.telemetryLevel = off`; in Claude Code, `DISABLE_TELEMETRY` and `DISABLE_ERROR_REPORTING`. Undo with `Remaining-Telemetry.ps1 -Revert`.
 
-### 4.3 Microsoft y fabricantes
+### 4.3 Microsoft extras (`Disable-Microsoft.ps1`)
 
-`Disable-Microsoft.ps1` deshabilitó `WSAIFabricSvc`, `whesvc` e `InventorySvc`, siete tareas de Office, Click to Do, CrossDeviceResume y los avisos de bienvenida, y desinstaló el Outlook nuevo y el complemento de Teams. Se conservan deliberadamente `ClickToRunSvc` y las dos tareas de actualización de Office, porque Word depende de ellas.
+It disables `WSAIFabricSvc`, `whesvc` and `InventorySvc`, seven Office tasks, Click to Do, CrossDeviceResume and the welcome notices, and uninstalls the new Outlook and the Teams add-in. `ClickToRunSvc` and the two Office update tasks are kept on purpose, because Word depends on them.
 
-`Limpiar-Arranque.ps1` apagó la telemetría de Intel (Telemetry Agent, Collector, PresentMon) y el diagnóstico de ASUS (SystemAnalysis, SystemDiagnosis, SoftwareManager). El asistente de controladores de Intel quedó en arranque manual, con su propio botón `ACTUALIZAR DRIVERS INTEL.bat`. `Remove-Intel-Graficos.ps1` apagó `IntelGraphicsSoftwareService`, que resucitaba PresentMon. Tras cada actualización del controlador gráfico de Intel conviene comprobar que no haya vuelto a Automático:
+PC makers (Intel, ASUS, Dell, HP, Lenovo and others) often ship their own telemetry services. The kit does not touch them, because they differ on every machine; `Find-Backdoors.ps1` and `HOW IS MY PC.bat` list what starts with Windows so you can decide.
 
-```powershell
-Get-Service IntelGraphicsSoftwareService, PresentMon* -ErrorAction SilentlyContinue | Select-Object Name, StartType
-```
+### 4.4 Extra privacy (`Paranoia.ps1`)
 
-`Parche-Eventos.ps1` eliminó el servicio huérfano `PRI-Driver` y deshabilitó los tres servicios «Queencreek» de Intel, que eran telemetría de energía y llenaban el Visor de eventos de errores 7000, 7023 y 7034.
-
-### 4.4 Privacidad adicional (`Paranoia.ps1`)
-
-Apaga el historial de actividad y el portapapeles en la nube, la Optimización de distribución en modo P2P (`DODownloadMode=0`), Buscar mi dispositivo, Recall y Copilot, el reconocimiento de voz en línea y la lista de idiomas que Windows expone a las páginas. En la red local desactiva LLMNR, mDNS, NetBIOS en los quince adaptadores y el autodescubrimiento de proxy (WPAD). Defender deja de subir muestras sin preguntar (`Set-MpPreference -SubmitSamplesConsent 2`) y sigue protegiendo igual. IPv6 pasa a usar direcciones temporales aleatorias:
+It turns off activity history and the cloud clipboard, peer-to-peer Delivery Optimization (`DODownloadMode=0`), Find my device, Recall and Copilot, online speech recognition and the language list Windows exposes to web pages. On the local network it disables LLMNR, mDNS, NetBIOS on every adapter and proxy auto-discovery (WPAD). Defender stops uploading samples without asking (`Set-MpPreference -SubmitSamplesConsent 2`) and keeps protecting just the same. IPv6 switches to random temporary addresses:
 
 ```powershell
 netsh interface ipv6 set privacy state=enabled
 netsh interface ipv6 set global randomizeidentifiers=enabled
 ```
 
-El script anota el valor original de cada uno de sus 29 ajustes antes de cambiarlo, y `-Revert` los devuelve.
+The script records the original value of each of its 29 settings before changing it, and `-Revert` puts them back.
 
-## 5. Reports de error de Windows
+## 5. Windows error reports
 
-Los informes se generan, pero no se envían. `Movie-Grade.ps1` fija en `HKLM\SOFTWARE\Microsoft\Windows\Windows Error Reporting` `ForceQueue=1` (dejar en cola local) y, en su subclave `Consent`, `DefaultConsent=1` (preguntar siempre), y activa `LocalDumps` para que los volcados de los programas que se cierran queden en el disco. El servicio `WerSvc` está en manual. El botón `VER MIS INFORMES DE ERRORES.bat` abre el Monitor de confiabilidad (`perfmon /rel`), desde donde pueden enviarse a Microsoft uno por uno si se desea.
+Reports are generated, but not sent. `Movie-Grade.ps1` sets, in `HKLM\SOFTWARE\Microsoft\Windows\Windows Error Reporting`, `ForceQueue=1` (keep them queued locally) and, in its `Consent` subkey, `DefaultConsent=1` (always ask), and enables `LocalDumps` so that dumps of programs that crash stay on disk. The `WerSvc` service is set to manual. The Reliability Monitor (`perfmon /rel`) shows them, and they can be sent to Microsoft one by one from there if you wish.
 
-Dos ajustes de estabilidad pertenecen a este apartado aunque nacieron de un problema de hardware. Los apagones y pantallazos negros (22 eventos Kernel-Power 41 y un bugcheck `0x154`) los causa el SSD Kingston NV3, que se desconecta del bus a 76–79 °C. Se apagó el ahorro de energía de PCIe (ASPM de 2 a 0), se activaron los volcados completos (`CrashDumpEnabled=7`) y `Parche-NVMe.ps1` le prohibió el estado de reposo profundo. Si los cuelgues vuelven, la causa sigue siendo ese disco y la solución definitiva es reemplazarlo.
+## 6. Network stack
 
-## 6. Pila de red
-
-`Parche-TCPIP.ps1` se ejecutó una sola vez y guardó los `.reg` originales junto a él.
+These are hardening commands for the TCP/IP stack; the kit leaves the original values in its backup.
 
 ```powershell
 netsh interface ipv4 set global icmpredirects=disabled
@@ -94,33 +86,33 @@ netsh interface 6to4 set state disabled
 netsh interface teredo set state disabled
 ```
 
-Las redirecciones ICMP permitirían a un tercero desviar el tráfico; el enrutamiento por origen deja que un paquete dicte su propio camino; ISATAP, 6to4 y Teredo son túneles que no se usan. En el registro se fijan además `DisableIPSourceRouting=2`, `EnableICMPRedirect=0` y `PerformRouterDiscovery=0`, este último solo en IPv4: el descubrimiento de routers de IPv6 no se toca, porque de él sale la dirección IPv6 pública del equipo.
+ICMP redirects would let a third party divert traffic; source routing lets a packet dictate its own path; ISATAP, 6to4 and Teredo are tunnels that are not used. The registry also gets `DisableIPSourceRouting=2`, `EnableICMPRedirect=0` and `PerformRouterDiscovery=0`, the last one only for IPv4: IPv6 router discovery is left alone, because the PC's public IPv6 address comes from it.
 
-## 7. Resolución de nombres: Unbound
+## 7. Name resolution: Unbound
 
-El equipo no pregunta a ningún DNS ajeno. Unbound, instalado como servicio, resuelve de forma recursiva desde los servidores raíz y solo atiende en `127.0.0.1` y `::1`; cualquier otra dirección recibe `refuse`. Los adaptadores Wi-Fi y Ethernet apuntan a esas dos direcciones. La configuración está en `C:\Program Files\Unbound\service.conf` e incluye minimización de consultas (`qname-minimisation`), validación DNSSEC y ocultación de identidad y versión.
+The PC does not ask any outside DNS. Unbound, installed as a service, resolves recursively from the root servers and only answers on `127.0.0.1` and `::1`; any other address gets `refuse`. The Wi-Fi and Ethernet adapters point to those two addresses. The configuration is in `C:\Program Files\Unbound\service.conf` and includes query minimisation (`qname-minimisation`), DNSSEC validation and hidden identity and version.
 
-El bloqueador de anuncios y malware funciona en este mismo nivel: `Network-Blocker.ps1` añade `block.conf` (lista StevenBlack, 74 599 dominios, respuesta `always_nxdomain`) mediante una línea `include:`. Antes de reiniciar el servicio valida la configuración con `unbound-checkconf` y, si falla, devuelve la anterior. Excluye a propósito los dominios de Microsoft y los de las cuentas del propietario. Tras cualquier cambio:
+The ad and malware blocker works at this same level: `Network-Blocker.ps1` adds a `block.conf` (for example the StevenBlack list, around 75,000 domains, answered with `always_nxdomain`) through an `include:` line. Before restarting the service it validates the configuration with `unbound-checkconf` and, if that fails, restores the previous one. It deliberately excludes Microsoft domains and the domains whose session the Browser keeps. After any change:
 
 ```powershell
 Restart-Service unbound; ipconfig /flushdns
 ```
 
-Conviene entender el alcance real. Unbound evita que un proveedor de DNS acumule el historial, pero sus consultas a los servidores autoritativos viajan sin cifrar, de modo que el proveedor de internet podría verlas. Eso no afecta al Browser, que resuelve los nombres dentro de Tor (apartado 9); sí afecta al resto de programas del equipo.
+It is worth understanding the real scope. Unbound stops a DNS provider from building up your history, but its queries to authoritative servers travel unencrypted, so your ISP could see them. That does not affect the Browser, which resolves names inside Tor (section 9); it does affect every other program on the PC.
 
-## 8. Cortafuegos
+## 8. Firewall
 
-### 8.1 Estado comprobado el 4 de octubre de 2026
+### 8.1 Expected state
 
-Los tres perfiles están activos, con la entrada bloqueada por defecto, la salida permitida y el registro de conexiones bloqueadas en `C:\Windows\System32\LogFiles\Firewall\pfirewall.log`. Existen las reglas `Sentinel-Hardening-Local-Subnet`, las cuatro `Sentinel-VM-Isolated-*` y el candado del Browser. **Faltaban las dos reglas anti-ping** (`Sentinel-No-Ping-IPv4` y `-IPv6`), que el blindaje de agosto debía haber creado; el nuevo script las repone.
+All three profiles are on, with inbound blocked by default, outbound allowed and blocked connections logged in `C:\Windows\System32\LogFiles\Firewall\pfirewall.log`. The rules `Sentinel-Hardening-Local-Subnet`, `Sentinel-No-Ping-IPv4`, `Sentinel-No-Ping-IPv6`, the four `Sentinel-VM-Isolated-*` and the Browser lock exist. `HOW IS MY PC.bat` reports any that are missing.
 
-### 8.2 Qué hace `Setup-Firewall.ps1`
+### 8.2 What `Setup-Firewall.ps1` does
 
-Se ejecuta con `Downloads\SET UP FIREWALL.bat`. Funciona en cinco pasos.
+It runs from `SET UP FIREWALL.bat`, in five steps.
 
-**Paso 0, respaldo.** Exporta la política completa con `netsh advfirewall export` a `Respaldos\cortafuegos-AAAAMMDD-HHMMSS.wfw` y registra la tarea `Cortafuegos - Reversor 10 min`, que la reimporta como SYSTEM a los diez minutos.
+**Step 0, backup.** Exports the whole policy with `netsh advfirewall export` to `Backups\` and registers a ten-minute auto-revert task that re-imports it as SYSTEM.
 
-**Paso 1, perfiles.** Aplica el comando central de toda la configuración y pasa a «Pública» cualquier red marcada como privada:
+**Step 1, profiles.** Applies the central command of the whole configuration and switches any network marked private to "Public":
 
 ```powershell
 Set-NetFirewallProfile -Profile Domain,Private,Public -Enabled True `
@@ -128,9 +120,9 @@ Set-NetFirewallProfile -Profile Domain,Private,Public -Enabled True `
   -LogBlocked True -LogAllowed False -LogMaxSizeKilobytes 32767
 ```
 
-**Paso 2, barrido de entrada.** Desactiva, sin borrarlas, las reglas de entrada de descubrimiento de redes, Wi-Fi Direct, proyección inalámbrica, Optimización de distribución, dispositivos conectados, MyASUS, transmisión a dispositivos, Teredo, mDNS, uso compartido de archivos e impresoras, AllJoyn, asistencia y escritorio remotos, monitor de eventos remotos, uso compartido del Reproductor de Windows Media, administración remota y `usbipd`. También las de programas que solo escuchan en el propio equipo (Python, Node, LM Studio, Postman, Packet Tracer, Podman, Outlook, AsusSwitchNet), porque el cortafuegos no filtra el bucle local y esas reglas solo añaden superficie. Elimina las de `adb.exe` y los mineros, y saca del perfil público las de los juegos. Nunca toca «Redes principales», el DHCP ni IPHTTPS: una regla amplia que alcanzara el DHCP dejaría el equipo sin dirección IP.
+**Step 2, inbound sweep.** Disables, without deleting them, the inbound rules for network discovery, Wi-Fi Direct, wireless projection, Delivery Optimization, connected devices, cast to device, Teredo, mDNS, file and printer sharing, AllJoyn, remote assistance and desktop, remote event monitor, Windows Media Player sharing and remote administration. Also those of programs that only listen on the PC itself (development tools, local servers and similar), because the firewall does not filter loopback and those rules only add surface. Game rules are moved out of the public profile. It never touches "Core Networking", DHCP or IPHTTPS: a broad rule that reached DHCP would leave the PC without an IP address.
 
-**Paso 3, reglas propias.** Crea o recrea:
+**Step 3, own rules.** Creates or recreates:
 
 ```powershell
 New-NetFirewallRule -DisplayName 'Sentinel-No-Ping-IPv4' -Direction Inbound -Action Block -Protocol ICMPv4 -IcmpType 8 -Profile Any
@@ -138,137 +130,141 @@ New-NetFirewallRule -DisplayName 'Sentinel-No-Ping-IPv6' -Direction Inbound -Act
 New-NetFirewallRule -DisplayName 'Sentinel-Hardening-Local-Subnet' -Direction Inbound -Action Block -RemoteAddress LocalSubnet -Profile Public,Private
 ```
 
-Solo se bloquea el eco: los mensajes ICMP de tipo 3 y 11 siguen pasando, porque sin ellos se rompe el descubrimiento del tamaño de paquete y algunas páginas dejan de cargar. La regla de subred local impide que cualquier equipo de la red de la casa inicie una conexión hacia este; las respuestas a lo que el propio equipo pide no se ven afectadas. Si existen los adaptadores VMnet1 y VMnet8 de VMware, se bloquean en ambos sentidos. Por último, el candado del Browser (apartado 9.4).
+Only echo is blocked: ICMP types 3 and 11 still pass, because without them path MTU discovery breaks and some pages stop loading. The local subnet rule stops any device on the home network from starting a connection to this PC; replies to what the PC itself asks for are not affected. If VMware's VMnet1 and VMnet8 adapters exist, they are blocked in both directions. Last, the Browser lock (section 9.4).
 
-**Paso 4, servicios que abren ports.** Detiene y deshabilita WinRM, LanmanServer, SSDP, UPnP, Registro remoto, Acceso remoto, Escritorio remoto y sus servicios auxiliares, el uso compartido del Reproductor, la publicación de recursos, la topología de vínculos, CDPSvc, los servicios P2P y `iphlpsvc`, y deniega por registro el escritorio y la asistencia remotos. LanmanWorkstation se mantiene: es el cliente, sin el cual no se accede a carpetas compartidas ajenas. El puerto 445 puede seguir apareciendo a la escucha hasta el siguiente reinicio, porque el controlador `srv2.sys` continúa cargado; no es un fallo.
+**Step 4, services that open ports.** Stops and disables WinRM, LanmanServer, SSDP, UPnP, Remote Registry, Remote Access, Remote Desktop and its helper services, Media Player sharing, function discovery resource publication, link-layer topology, CDPSvc, the peer-to-peer services and `iphlpsvc`, and denies remote desktop and assistance in the registry. LanmanWorkstation is kept: it is the client, without which other people's shared folders cannot be reached. Port 445 may keep showing as listening until the next restart, because the `srv2.sys` driver stays loaded; that is not a fault.
 
-**Paso 5, comprobación.** Prueba internet con una conexión TCP directa al puerto 443 de tres direcciones públicas y la resolución por Unbound. Si no hay internet, restaura de inmediato. Si lo hay, pide escribir `SI` tras abrir una página; solo entonces se borra el reversor. Cerrar la ventana sin contestar equivale a deshacer todo a los diez minutos. Para volver atrás más tarde:
+**Step 5, check.** Tests Internet with a direct TCP connection to port 443 of three public addresses, and resolution through Unbound. If there is no Internet, it restores immediately. If there is, it asks you to type `YES` after opening a page; only then is the auto-revert removed. Closing the window without answering means everything is undone after ten minutes. To go back later:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File %USERPROFILE%\Security\Setup-Firewall.ps1 -Revert
 ```
 
-## 9. El Browser
+## 9. The Browser
 
-### 9.1 Arquitectura
+### 9.1 Architecture
 
-El Browser es LibreWolf 156.0.1 con apariencia propia (smiley amarilla, título «Browser»). Ninguna página sale directamente desde el navegador: el candado del cortafuegos impide a `librewolf.exe` hablar con cualquier dirección pública, de modo que solo puede comunicarse con tres puertas locales. Un filtro de rutas, escrito en los ajustes del navegador, decide cuál usa cada petición según la página principal que se abrió.
+The Browser is LibreWolf with its own look (yellow smiley, title "Browser"). No page goes out directly from the browser: the firewall lock stops `librewolf.exe` from talking to any public address, so it can only reach three local gates. A routing filter, written into the browser settings, decides which one each request uses according to the main page that was opened.
 
-1. **Tor normal**, para todo por defecto, a través de la carrera de circuitos (127.0.0.1:9070, apartado 9.7) y, si esta falla, directamente por 127.0.0.1:9050. Un motor Tor en Ubuntu 26.04 (WSL) entra en la red por un puente WebTunnel, que ante el proveedor parece una conexión HTTPS a una página común; después cruza tres relevos, y cada sitio recibe su propio circuito y su propia IP de salida.
-2. **Tor con salida elegida (127.0.0.1:9055)**, para los sitios que bloquean por país y no por ser Tor. Es un segundo motor con el mismo puente que solo sale por relevos de los países admitidos en `Browser\chosen_exit.txt`. Hoy lo usa un portal educativo: su cortafuegos FortiWeb rechaza ciertas IP por país («Attack ID 20000018», *Unauthorized Geo IP*). La prueba del 4 de octubre mostró que abre desde salidas de Estados Unidos, Canadá, México, Chile, Alemania, Países Bajos, Francia y Reino Unido, y no desde Suecia, Austria, Rumanía o Luxemburgo. La IP sigue oculta.
-3. **Puerta directa protegida (127.0.0.1:9060)**, solo para los sitios que rechazan a toda la red Tor y que el propietario autoriza en `Browser\direct.txt`. Hoy solo Kick, cuya regla de Cloudflare bloqueó las veinte salidas probadas. Por esta puerta el sitio ve la IP real. La puerta solo escucha en el equipo, comprueba que la página principal esté autorizada, admite únicamente HTTPS, rechaza cualquier destino de la red de casa o reservado y anota los rechazos en `Browser\puerta.log`. Solo los servidores propios del sitio salen directo; lo que la página carga de terceros (anuncios, analítica, otros proveedores) sigue por Tor. En esos sitios la hora y el idioma son los reales de Colombia, porque una IP colombiana con la hora de Islandia es una alerta habitual de los sistemas antifraude.
+1. **Regular Tor**, for everything by default, through the circuit race (127.0.0.1:9070, section 9.7) and, if that fails, directly through 127.0.0.1:9050. A Tor engine in Ubuntu (WSL) enters the network directly or through a WebTunnel bridge, which to your ISP looks like an HTTPS connection to an ordinary page; it then crosses three relays, and each site gets its own circuit and its own exit IP.
+2. **Tor with chosen exit (127.0.0.1:9055)**, for sites that block by country rather than for being Tor. It is a second engine with the same entry that only exits through relays in the countries allowed in `Browser\chosen_exit.txt` (`countries:` line). Some web application firewalls reject IPs by country ("Unauthorized Geo IP"); with this engine those sites open and the IP stays hidden.
+3. **Protected direct gate (127.0.0.1:9060)**, only for sites that reject the whole Tor network and that you authorize in `Browser\direct.txt`. Through this gate the site sees your real IP. The gate only listens on the PC, checks that the main page is authorized, accepts HTTPS only, refuses any home-network or reserved destination and logs refusals in `Browser\puerta.log`. Only the site's own servers go direct; whatever the page loads from third parties (ads, analytics, other providers) still goes through Tor. On those sites the time and language are your real ones, because a local IP with a foreign time zone is a common anti-fraud alert.
 
-En Windows, Smart App Control bloquea las bibliotecas de Tor Browser, y por eso los motores viven en Linux. Llegan a Windows a través de `wslrelay`, que solo escucha en el propio equipo: nadie de la red local alcanza esos ports.
+On Windows, Smart App Control blocks the Tor Browser libraries, which is why the engines live in Linux. They reach Windows through `wslrelay`, which only listens on the PC itself: nobody on the local network can reach those ports.
 
-### 9.2 Piezas y su ubicación
+### 9.2 Pieces and where they live
 
-En Windows, dentro de `Security\Browser\`: `launch_browser.pyw` abre el navegador, limpia cookies y caché salvo las de la lista `CONSERVAR`, escribe `route.pac` y las listas de sitios en las preferencias, y enciende los motores y la puerta si faltan; un candado (`.lanzador.lock`) impide que dos lanzadores limpien o abran a la vez, el navegador cuenta como abierto solo si su perfil está en uso, y si la limpieza falla el lanzador lo anota en `lanzador.log` y abre igual; `tor_watchdog.pyw` comprueba los cuatro servicios (9050, 9055, 9060 y 9070) cada treinta segundos y reenciende lo que caiga; cada dos minutos abre además una conexión de prueba por cada motor y, si falla tres veces seguidas, reinicia ese motor, porque un puente muerto deja el puerto abierto sin salida; cada seis horas pide la renovación de puentes, y anota lo que hace en `vigia.log`. Lo arranca la tarea `Browser - Tor always` al iniciar sesión; `direct_gate.py` es la puerta; `race.py` la carrera de circuitos, `speed.json` el requisito y los parámetros de velocidad, y `afinar.py` el afinador; `direct.txt` y `chosen_exit.txt` son las dos listas; `tor-chosen.sh` es la copia en Windows del motor de salida elegida; `from_edge.pyw` recibe lo que Windows mandaba a Edge; `home.html` es la página de inicio, con DuckDuckGo HTML por defecto, y `weak-tls.html` el aviso de conexión débil cortada. La carpeta `pruebas\` guarda las comprobaciones que respaldan cada ajuste, y `BITACORA-2026-10-04.md` el registro de la jornada en que se construyó todo esto. En la carpeta del programa están `defaults\pref\browser.js`, `distribution\policies.json` y los iconos; en el perfil, `~\.librewolf\librewolf.overrides.cfg`, con los ajustes y los candados `lockPref`.
+On Windows, inside `Security\Browser\`:
 
-En Ubuntu, dentro de `~/.smiley/`: `tor-browser.sh` (motor principal), `tor-chosen.sh` (motor de salida elegida), `bridges.sh` (gestión de puentes: `aplicar`, `renovar`, `rescatar`, `probar`) y `puentes.txt` (los puentes en uso). Los dos motores conservan el circuito de un sitio mientras alguna conexión suya sigue abierta (`KeepAliveIsolateSOCKSAuth`, como Tor Browser), y el de salida elegida pasa a todos los puentes si el primero no conecta en 45 segundos. Las copias de Windows de los dos motores están en `Browser\`.
+- `launch_browser.pyw` opens the browser, clears cookies and cache except those in the `CONSERVAR` list, writes `route.pac` and the site lists into the preferences, and starts the engines and the gate if missing. A lock file (`.lanzador.lock`) stops two launchers from clearing or opening at once; the browser only counts as open if its profile is in use; and if clearing fails the launcher logs it in `lanzador.log` and opens anyway.
+- `tor_watchdog.pyw` checks the four services (9050, 9055, 9060 and 9070) every thirty seconds and restarts whatever goes down. Every two minutes it also opens a test connection through each engine and, after three failures in a row, restarts that engine, because a dead bridge leaves the port open with no way out. Every six hours it asks for a bridge renewal, and logs what it does in `vigia.log`. It is started at sign-in by the task `Browser - Tor always`.
+- `direct_gate.py` is the gate and `race.py` the circuit race; `speed.json` holds the target and speed parameters.
+- `direct.txt` and `chosen_exit.txt` are the two site lists; `tor-browser.sh` and `tor-chosen.sh` are the Windows copies of the two engines.
+- `from_edge.pyw` receives whatever Windows used to send to Edge; `import_edge.py` imports bookmarks, history and passwords from Edge.
+- `home.html` is the start page, with DuckDuckGo HTML by default, and `weak-tls.html` the "weak connection blocked" notice.
 
-### 9.3 Ajustes del navegador
+In the program folder are `defaults\pref\browser.js`, `distribution\policies.json` and the icons; in the profile, `~\.librewolf\librewolf.overrides.cfg`, with the settings and the `lockPref` locks.
 
-**Rutas.** Además del filtro descrito, quedan bloqueados con `lockPref` el archivo PAC, la resolución de nombres por el proxy, el paso directo si el proxy falla (`failover_direct=false`), WebRTC limitado al proxy y HTTP/3 apagado.
+In Ubuntu, inside `~/.smiley/`: `tor-browser.sh` (main engine), `tor-chosen.sh` (chosen-exit engine), and optionally `bridges.sh` (bridge management: `aplicar`, `renovar`, `rescatar`, `probar`) with `puentes.txt` (the bridges in use), which you provide yourself. Both engines keep a site's circuit while any of its connections is still open (`KeepAliveIsolateSOCKSAuth`, as in Tor Browser), and with bridges they switch to all of them if the first does not connect within 45 seconds.
 
-**TLS.** Mínimo 1.2 y máximo 1.3, por decisión del propietario del 4 de octubre. El saludo TLS es idéntico al de Firefox, con sus diecisiete cifrados, y su huella JA4 es `t13d1717h2_5b57614c22b0_3cbfd9057e0d`, la de cualquier Firefox 156. Remove cifrados del saludo, como se hizo durante unas horas, y antes el modo «solo TLS 1.3», dejaba una huella que no era la de Firefox; los sistemas antibots puntúan esa incoherencia como señal de programa automático. La protección se aplica después del saludo: el bloque «TLS vigilado» corta toda conexión en la que el servidor elija un cifrado débil (CBC, o intercambio RSA sin secreto hacia adelante) o una versión anterior a 1.2, y la pestaña muestra «Conexión débil cortada». Las excepciones se indican en `smiley.tls_debil_permitido`, hoy vacía. Siguen activos el anclaje estricto de certificados, la revocación por CRLite, el modo solo HTTPS, la renegociación segura, la detección de degradación y la prohibición de TLS 1.0 y 1.1.
+### 9.3 Browser settings
 
-**Ubicación y cuentas.** En las páginas que van por Tor, el bloque «Ubicación oculta» presenta el idioma `es-ES` y la zona horaria `Atlantic/Reykjavik` en la página, los marcos y los *workers*. Una sola lista, `CUENTAS`, reúne 45 dominios de correo, estudio, bancos, compras, trabajo y herramientas de IA. Esos sitios ven la hora real y conservan la misma IP durante la sesión: no reciben circuito nuevo automático, y lo que cargan de terceros viaja por un circuito aparte. Hasta el 4 de octubre había dos listas que no coincidían. Las redes sociales quedan fuera a propósito, y los sitios de `direct.txt` también ven la hora real.
+**Routing.** Besides the filter described, the PAC file, name resolution through the proxy, direct fallback when the proxy fails (`failover_direct=false`), WebRTC limited to the proxy and HTTP/3 off are all locked with `lockPref`.
 
-**Caché.** LibreWolf trae apagada la caché en disco, y el lanzador borraba además la de todos los sitios en cada apertura: cada sesión volvía a descargar por Tor el código completo de las páginas (274 piezas en Twitch). Desde el 4 de octubre la caché en disco está encendida, con tope de 512 MB, y el lanzador solo borra la de los sitios que no están en `CONSERVAR`. Con la caché, la página de Twitch queda lista en 1,4 segundos.
+**TLS.** Minimum 1.2 and maximum 1.3. The TLS hello is identical to Firefox's, with its seventeen ciphers, so its JA4 fingerprint is that of any Firefox of the same version. Removing ciphers from the hello, or a "TLS 1.3 only" mode, leaves a fingerprint that is not Firefox's, and anti-bot systems score that mismatch as a sign of an automated program. Protection is therefore applied after the hello: the "TLS vigilado" (watched TLS) block cuts any connection in which the server picks a weak cipher (CBC, or RSA key exchange without forward secrecy) or a version older than 1.2, and the tab shows "Weak connection blocked". Exceptions go in `smiley.tls_debil_permitido`, empty by default. Strict certificate pinning, CRLite revocation, HTTPS-only mode, safe renegotiation, downgrade detection and the ban on TLS 1.0 and 1.1 remain on.
 
-**Cookies y avisos.** Las cookies se borran al cerrar, salvo las de los 55 dominios de `CONSERVAR` (correo, estudio, IA, trabajo, redes y banca), que guardan la sesión. El historial, los favoritos y las contraseñas se conservan. Los avisos de cookies se ocultan con uBlock Origin, configurado por política con las listas `fanboy-cookiemonster`, `ublock-cookies-easylist` y `adguard-cookies`; el cambio surte efecto en el segundo arranque. Los avisos de términos de servicio actualizados y las reglas que los canales imponen antes de escribir en el chat se **ocultan** sin aceptarlos: el bloque «Avisos ocultos» busca cada segundo esas frases exactas, toma el bloque más pequeño que contiene el texto y un botón de aceptar, y lo oculta con `display:none`. No borra nada, no pulsa nada y nunca toca un bloque con más contenido, como la columna del chat. Tampoco toca los formularios de registro ni los pies de página. Si un canal exige aceptar sus reglas para dejar escribir, su chat puede no enviar mensajes.
+**Location and accounts.** On pages that go through Tor, the "Ubicacion oculta" (hidden location) block presents a generic language and the time zone `Atlantic/Reykjavik` (UTC) to the page, frames and workers. The account sites in `CONSERVAR` (mail, study, banking, work, AI tools) see the real time and keep the same IP during the session: they do not get an automatic new circuit, and what they load from third parties travels on a separate circuit. Sites in `direct.txt` also see the real time.
 
-### 9.4 Qué hace `Setup-Browser.ps1`
+**Cache.** LibreWolf ships with the disk cache off, and clearing every site's cache on each start meant every session downloaded the full code of each page through Tor again. The disk cache is on, capped at 512 MB, and the launcher only clears the cache of sites not in `CONSERVAR`.
 
-Se ejecuta con `Downloads\SET UP BROWSER.bat` y solo pone lo que falta. Primero comprueba los requisitos: Python, las piezas de `Browser\`, LibreWolf (lo instala con winget si no está) y su firma digital, y que Unbound esté en marcha. Después repone `browser.js`, sin el cual no corre ninguno de los ajustes con privilegios; los iconos de la smiley; y `policies.json` desde `Respaldos\librewolf-propio` si difiere, ya que una actualización de LibreWolf puede reescribirlo. Revisa que los overrides contengan el proxy, la resolución remota y la versión de TLS.
+**Cookies and notices.** Cookies are deleted on close, except for the domains in `CONSERVAR`, which keep their session. History, bookmarks and passwords are kept. Cookie banners are hidden with uBlock Origin, configured by policy with the `fanboy-cookiemonster`, `ublock-cookies-easylist` and `adguard-cookies` lists; the change takes effect on the second start. Updated terms-of-service notices and the rules some chat channels impose before you can type are **hidden** without accepting them: the "Avisos ocultos" (hidden notices) block looks for those exact phrases every second, takes the smallest block containing the text and an accept button, and hides it with `display:none`. It deletes nothing, clicks nothing and never touches a block with more content, such as the chat column. It does not touch sign-up forms or footers either. If a channel requires accepting its rules before you can type, its chat may not send messages.
 
-A continuación paraliza Edge sin desinstalarlo. Cierra sus procesos y redirige su ejecutable mediante la clave *Image File Execution Options*:
+### 9.4 What `Setup-Browser.ps1` does
+
+It runs from `SET UP BROWSER.bat` and only adds what is missing. First it checks the requirements: Python, the pieces in `Browser\`, LibreWolf (installed with winget if absent) and its digital signature, and that Unbound is running. Then it restores `browser.js`, without which none of the privileged settings run; the smiley icons; and `policies.json` from `Backups\` if it differs, since a LibreWolf update may overwrite it. It checks that the overrides contain the proxy, remote resolution and the TLS version.
+
+Next it disables Edge without uninstalling it. It closes its processes and redirects its executable through the *Image File Execution Options* key:
 
 ```powershell
 $ifeo = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\msedge.exe'
 Set-ItemProperty $ifeo Debugger '"...\pythonw.exe" "%USERPROFILE%\Security\Browser\from_edge.pyw"'
 ```
 
-Desde ese momento, cualquier cosa que Windows mande a Edge, un enlace o un PDF, se abre en el Browser, maximizada y al frente. Aplica dieciocho políticas de Edge (sin arranque anticipado, sin segundo plano, sin datos de diagnóstico, sin Copilot ni barra lateral), retira sus accesos directos guardando copia, ancla el Browser a la barra y quita Bing de la búsqueda del menú Inicio. WebView2 no se toca, porque lo usan WhatsApp y la búsqueda de Windows.
+From then on, anything Windows sends to Edge, a link or a PDF, opens in the Browser, maximized and in front. It applies eighteen Edge policies (no startup boost, no background mode, no diagnostic data, no Copilot or sidebar), removes its shortcuts while keeping a copy, pins the Browser to the taskbar and removes Bing from Start menu search. WebView2 is left alone, because other apps (WhatsApp, Windows search) use it.
 
-Luego crea el candado del cortafuegos: una regla de salida que impide a `librewolf.exe` hablar con cualquier dirección pública de IPv4 o con `2000::/3` en IPv6. En la prueba del 2 de octubre, una conexión directa forzada quedó bloqueada en 188 ms.
+Then it creates the firewall lock: an outbound rule that stops `librewolf.exe` from talking to any public IPv4 address or to `2000::/3` on IPv6. In testing, a forced direct connection was blocked in under 200 ms.
 
-Después comprueba que exista el motor en WSL, registra si falta la tarea `Browser - Tor always` (al iniciar sesión, sin privilegios, reinicio cada minuto), la reinicia para que corra la última versión del vigía, espera hasta cuatro minutos a que abra el 9050 y confirma la salida por Tor:
+After that it checks the engine exists in WSL, registers the task `Browser - Tor always` if missing (at sign-in, without privileges, restart every minute), restarts it so the latest watchdog runs, waits up to four minutes for 9050 to open and confirms the exit through Tor:
 
 ```powershell
 curl.exe --socks5-hostname 127.0.0.1:9050 https://check.torproject.org/api/ip
 ```
 
-Por último instala `tor-chosen.sh` en Ubuntu y espera a que escuchen el motor de salida elegida (9055) y la puerta directa (9060). Si algo falla, el resumen final lo enumera.
+Finally it installs `tor-chosen.sh` in Ubuntu and waits for the chosen-exit engine (9055) and the direct gate (9060) to listen. If anything fails, the final summary lists it.
 
-### 9.5 Rendimiento medido el 4 de octubre
+### 9.5 Measured performance
 
-Con el perfil ya en uso (caché llena y listas de uBlock descargadas), el chat de Twitch conectó a los 5,5 segundos y recibió el primer mensaje a los 8,6; el vídeo arrancó hacia los 10 segundos. El directo de Kick arrancó a los 6,1 segundos, a 720p, sin cortes y con el chat cargado. Ese portal abrió por la salida elegida en 1,7 a 5,3 segundos en cinco circuitos distintos. Un circuito de Tor rinde unos 0,7 MB/s; tres a la vez, 1,4 MB/s, con mucha diferencia según la salida que toque. Las pruebas con un perfil recién creado exageran los tiempos, porque uBlock descarga todas sus listas antes de dejar pasar nada.
+With a profile already in use (full cache and uBlock lists downloaded), live-stream sites connected their chat in about 5 to 9 seconds and started video in about 6 to 10 seconds at 720p; a geo-filtered portal opened through the chosen exit in 1.7 to 5.3 seconds across five different circuits. A single Tor circuit delivers about 0.7 MB/s; three at once, about 1.4 MB/s, with a lot of variation depending on the exit. Tests with a freshly created profile exaggerate the times, because uBlock downloads all its lists before letting anything through.
 
-Se probó y se descartó llevar el vídeo de cada sitio por un circuito propio: el reproductor de Twitch falla con «Error #2000» si el vídeo sale por una IP distinta de la de la página. El ajuste queda apagado (`smiley.pesado`).
+Routing each site's video over its own circuit was tested and discarded: some players (Twitch, "Error #2000") fail if the video comes from a different IP than the page. The setting stays off (`smiley.pesado`).
 
-### 9.6 Límites conocidos
+### 9.6 Known limits
 
-Algunos sitios rechazan a toda la red Tor y solo abrirían por la puerta directa, lo que exige la autorización del propietario sitio por sitio: la Policía, el SISBÉN, Stack Overflow, Falabella y Éxito. Google pide captcha. Un aula virtual universitaria solo ofrece un cifrado CBC y además rechaza a Tor: necesitaría la puerta directa y una excepción de «TLS vigilado». Mojeek no responde por Tor y por eso se usa DuckDuckGo HTML. Si el navegador se abre por una vía distinta del lanzador, las páginas no cargan: es el comportamiento buscado, no una avería.
+Some sites reject the whole Tor network (some government portals, some shops, Stack Overflow) and would only open through the direct gate, which requires your authorization site by site. Google asks for a captcha. A site that only offers CBC ciphers and also rejects Tor would need the direct gate plus a "TLS vigilado" exception. Mojeek does not answer through Tor, which is why DuckDuckGo HTML is used. If the browser is opened any way other than through the launcher, pages do not load: that is the intended behaviour, not a fault.
 
-### 9.7 Velocidad: requisito, carrera de circuitos y afinado
+### 9.7 Speed: target, circuit race and tuning
 
-A petición del propietario, la velocidad se gobierna con un requisito medible y parámetros, no con ajustes a ojo. Todo vive en `Browser\speed.json`. El bloque `objetivo` fija el requisito de tiempo de respuesta, medido como segundos hasta el primer byte de la página al abrir un sitio nuevo: mediana de 1,5 s o menos, el 10 % más lento en 4 s o menos y como máximo un 2 % de respuestas de más de 10 s. Los bloques `carrera` y `navegador` contienen los parámetros de cada optimización, y `ultimo_afinado` el resultado de la última medición.
+Speed is governed by a measurable target and parameters, not by guesswork. Everything lives in `Browser\speed.json`. The `objetivo` block sets the response-time target, measured as seconds to the page's first byte when opening a new site: median of 1.5 s or less, the slowest 10 % at 4 s or less, and at most 2 % of responses over 10 s. The `carrera` and `navegador` blocks hold the parameters of each optimization.
 
-Cuatro piezas actúan sobre la respuesta. La **carrera de circuitos** (`Browser\race.py`, 127.0.0.1:9070) se interpone entre el navegador y Tor: en la primera conexión de cada sitio envía el saludo TLS del navegador por dos circuitos a la vez y se queda con el primero cuyo servidor responde. Después, el sitio entero sigue por ese circuito, porque Twitch falla si un mismo sitio sale por IP distintas; las demás conexiones del sitio esperan al ganador en lugar de competir. Si la carrera no responde, el navegador pasa solo a Tor sin ella, y nunca hay salida directa. El **circuito nuevo automático** cambia de circuito a un sitio cuya página tarda más de `lento_ms` (7 s) en responder y reintenta por otro la que no respondió en `atasco_ms` (12 s), como mucho dos veces por minuto; Ctrl+Shift+L lo hace a mano. El texto se muestra a los 200 ms aunque la tipografía de la página no haya llegado (`fuentes_ms`). Y las conexiones abiertas se conservan diez minutos para no repetir el saludo TLS al volver a un sitio.
+Four pieces act on response time. The **circuit race** (`Browser\race.py`, 127.0.0.1:9070) sits between the browser and Tor: on the first connection to each site it sends the browser's TLS hello over two circuits at once and keeps the first one whose server answers. After that, the whole site stays on that circuit, because some sites fail if the same site goes out through different IPs; the site's other connections wait for the winner instead of competing. If the race does not answer, the browser falls back to Tor without it, and there is never a direct exit. The **automatic new circuit** switches a site to a new circuit when its page takes longer than `lento_ms` (7 s) to answer, and retries over another circuit a request that did not answer within `atasco_ms` (12 s), at most twice a minute; Ctrl+Shift+L does it by hand. Text is shown after 200 ms even if the page's font has not arrived (`fuentes_ms`). And open connections are kept for ten minutes so the TLS hello is not repeated when returning to a site.
 
-En las cuentas, el circuito nuevo automático no actúa: Outlook cambiaba de IP de salida varias veces por sesión (seis en siete minutos) porque Tor retira el circuito de un sitio cuando una petición se cuelga quince segundos en la salida, y lo que la página cargaba de terceros viajaba por ese mismo circuito. Además, pasados diez minutos Tor dejaba de usar un circuito para conexiones nuevas aunque el sitio siguiera abierto, hasta que los motores incorporaron `KeepAliveIsolateSOCKSAuth`. En las cuentas, Ctrl+Shift+L sigue dando un circuito nuevo a mano.
+On account sites the automatic new circuit does not act: webmail used to change exit IP several times per session, because Tor retires a site's circuit when a request hangs fifteen seconds at the exit, and what the page loaded from third parties travelled over that same circuit. Also, after ten minutes Tor stopped using a circuit for new connections even while the site was still open, until the engines adopted `KeepAliveIsolateSOCKSAuth`. On account sites, Ctrl+Shift+L still gives a new circuit by hand.
 
-`Browser\afinar.py` prueba configuraciones de la carrera, de la más barata a la más agresiva, pidiendo cada página a la vez por Tor solo y por la candidata. Se queda con la primera que cumple el objetivo, la escribe en `speed.json` y anota el historial en `afinado.log`. La carrera relee el archivo sola, y el lanzador pasa los umbrales del navegador al abrirlo.
+Tuning showed the limit is physical. The best configuration, two circuits at once in "saludo" mode, gave a median of 2.4 s, a p90 of 4.2 s and 4.2 % slow responses; Tor alone, over the same test, gave 2.5 s, 8.8 s and 9.9 %. The race cuts long waits by more than half, but does not lower the median. Three Tor settings were discarded with data: two bridges with Conflux made response worse; Tor does not accept a `CircuitStreamTimeout` below 10 s; and restricting relays to one region prevented connecting. Opening a new site takes about three round trips over four hops (entry and three relays), 0.6 to 0.8 s each, and with a shared public bridge, when that bridge saturates no circuit escapes it.
 
-El afinado del 4 de octubre no alcanzó el objetivo. La mejor configuración, dos circuitos a la vez en modo «saludo», dio una mediana de 2,4 s, un p90 de 4,2 s y un 4,2 % de respuestas lentas; Tor solo, durante toda la prueba, dio 2,5 s, 8,8 s y 9,9 %. La carrera reduce a menos de la mitad las esperas largas, pero no baja la mediana. Tres configuraciones de Tor se descartaron con datos: dos puentes con Conflux empeoraron la respuesta; Tor no admite un `CircuitStreamTimeout` menor de 10 s; y restringir los relevos a Norteamérica impidió conectar. El límite es físico. Abrir un sitio nuevo exige unas tres idas y vueltas por cuatro saltos (puente y tres relevos), de 0,6 a 0,8 s cada una, y todo pasa por un único puente público compartido. Cuando ese puente se satura, ningún circuito se salva: en un tramo de la prueba, Tor solo tuvo un 20,8 % de respuestas de más de 10 s.
+## 10. Mistakes made and lessons
 
-## 10. Errores cometidos y lecciones
+This section collects the failures found during construction. Several were silent and only surfaced when reviewing the result.
 
-Esta sección recoge los fallos de la construcción. Varios eran silenciosos y solo se descubrieron al revisar el resultado.
+**The first hardening left 78 rules open without warning.** `Get-NetFirewallRule -DisplayName X -Direction Inbound` is not a filter but a PowerShell error, because those parameters belong to different sets; an empty `catch` turned it into a zero. Also, Spanish Windows group names carry accents and the ASCII code matched none of them. Since then, queries use a single criterion, filtering is done with `Where-Object` comparing without accents, and no `catch` around a count may stay silent. The same review found that `-EnableInsecureGuestLogons` does not exist in `Set-SmbServerConfiguration` and voided the whole command; SMB settings are applied one at a time. `REPAIR WHAT WAS MISSED.bat` re-runs the ports layer for installs hardened before this fix.
 
-**El primer blindaje dejó 78 reglas abiertas sin avisar.** `Get-NetFirewallRule -DisplayName X -Direction Inbound` no es un filtro sino un error de PowerShell, porque esos parámetros pertenecen a conjuntos distintos; un `catch` vacío lo convirtió en un cero. Además, los grupos de Windows en español llevan tildes y el código, en ASCII, no coincidía con ninguno. Desde entonces se consulta por un solo criterio, se filtra con `Where-Object` comparando sin tildes, y ningún `catch` que rodee un recuento puede quedar mudo. En la misma revisión se vio que `-EnableInsecureGuestLogons` no existe en `Set-SmbServerConfiguration` y anulaba la orden entera; los ajustes de SMB se aplican de uno en uno.
+**The anti-ping rules were missing.** The firewall script now creates them and checks each rule separately.
 
-**Las reglas anti-ping no existían.** Se detectó al preparar esta guía, el 4 de octubre. El nuevo script del cortafuegos las crea y comprueba cada regla por separado.
+**Hardening overwrote the local DNS.** `Harden.ps1` set Cloudflare's DNS even while Unbound was running, and DoH never actually activated: queries travelled unencrypted until it was fixed.
 
-**El blindaje sobrescribía el DNS local.** `Harden.ps1` ponía el DNS de Cloudflare aunque Unbound estuviera en marcha, y el DoH nunca llegó a activarse: las consultas viajaron sin cifrar hasta que se corrigió.
+**Ten-second Wi-Fi drops.** Unbound's `private-address: fd00::/8` line removed the IPv6 answer for `dns.msftncsi.com`; Windows believed there was no Internet and reset the driver. Fixed with `private-domain: "msftncsi.com"`.
 
-**Cortes del Wi-Fi de diez segundos.** La línea `private-address: fd00::/8` de Unbound borraba la respuesta IPv6 de `dns.msftncsi.com`; Windows creía que no había internet y reiniciaba el controlador. Se resolvió con `private-domain: "msftncsi.com"`.
+**Configurations emptied by accident.** `[regex]::Replace(text, pattern, replacement, 1)` treats the 1 as an option, not a limit, and replaced every brace in a VS Code `settings.json`; it was restored from backup. `New-Item -Force` on an existing registry key leaves it empty; `Smiley-Browser.ps1` and `Disable-Edge.ps1` used it on existing keys and were fixed to create the key only if missing. A backup rewritten on every pass ends up storing already-hardened values as originals; `Paranoia.ps1` merges instead of rewriting.
 
-**Configuraciones vaciadas por accidente.** `[regex]::Replace(texto, patrón, reemplazo, 1)` interpreta el 1 como opción y no como límite, y reemplazó todas las llaves del `settings.json` de VS Code; se restauró desde el respaldo. `New-Item -Force` sobre una clave de registro existente la deja vacía; `Smiley-Browser.ps1` y `Disable-Edge.ps1` lo usaban sobre claves ya existentes; el 4 de octubre se corrigieron para que solo creen la clave si falta (copias en `Respaldos\*.bak-20261004`), y el script nuevo del Browser sigue la misma regla. Un respaldo que se reescribe en cada pasada acaba guardando valores ya endurecidos como originales; `Paranoia.ps1` fusiona en lugar de reescribir.
+**Mandatory TLS 1.3 broke some sites.** Firefox has no per-site TLS version exception; the fix was TLS 1.2 with the "TLS vigilado" protection described in section 9.3.
 
-**TLS 1.3 obligatorio rompió el aula virtual.** No existe en Firefox una excepción de versión TLS por sitio; se bajó a 1.2 y después, por decisión del propietario, se volvió a 1.3. El 4 de octubre el propietario aceptó de nuevo TLS 1.2, con la protección «TLS vigilado» descrita en el apartado 9.3.
+**Tor stopped starting.** A clean-up left `UseBridges 1` with no `Bridge` line, and Tor refuses to start in that state. The built-in bridges were saturated (obfs4), dead (default WebTunnel bridges, one with an expired certificate) or went through Microsoft Azure (meek). The direct entry is now the default, and bridges are optional.
 
-**Tor dejó de arrancar.** Una limpieza dejó `UseBridges 1` sin ninguna línea `Bridge`, y Tor se niega a iniciar en ese estado. Además, los puentes incorporados estaban saturados (obfs4), muertos (los WebTunnel por defecto, uno con certificado vencido) o pasaban por Azure de Microsoft (meek), que el propietario rechazó. Hoy `bridges.sh` mide y ordena los puentes por velocidad real.
+**Windows traps that cost time.** A UTF-8 `.ps1` without BOM breaks accented characters in PowerShell 5, which is why the scripts are written in ASCII. Filtering processes by `CommandLine -match` without restricting the name catches the console itself and closes it. `netsh wlan show interfaces` needs the location permission the hardening closes. Quick Edit mode freezes the elevated console if you click in it; Esc releases it. Microsoft's connectivity check fails on networks that inspect TLS, so every Internet test uses raw TCP to port 443.
 
-**Trampas de Windows que costaron tiempo.** Un `.ps1` en UTF-8 sin BOM rompe las tildes en PowerShell 5, por eso los scripts se escriben en ASCII. Filtrar procesos por `CommandLine -match` sin limitar el nombre atrapa la propia consola y la cierra. `netsh wlan show interfaces` exige el permiso de ubicación que el blindaje cierra. El modo de edición rápida congela la consola elevada si se hace clic en ella; se libera con Esc. La comprobación de conectividad de Microsoft falla en redes que inspeccionan TLS, por lo que toda prueba de internet usa TCP crudo al 443.
+**Mistakes while building the routing.** The first version of the notices block clicked "Accept", when the goal was to accept nothing. The second removed nodes from the page: React sites can break when nodes are removed from outside, and it also climbed up to the first fixed layer, which can be a whole chat column. Since then the block only hides, and never a block with more content than the notice itself. Trimming ciphers from the TLS hello to "harden" TLS 1.2 changed the browser's fingerprint and made it look like an automated program; the Firefox hello was restored and protection moved to after the hello. The first version of that protection cut the page without showing anything; now it explains what happened. Routing video over its own circuit broke a video player; a `curl` test had suggested otherwise, and the lesson is to test with the real browser. Long texts typed into a Bash console got cut or lost backslashes: changes are applied from patch files.
 
-**Errores del 4 de octubre, al construir el enrutado.** La primera versión del bloque de avisos pulsaba «Aceptar», cuando el propietario no quería aceptar nada. La segunda borraba los nodos de la página: Twitch, hecho con React, puede romperse cuando le quitan nodos desde fuera, y además subía hasta la primera capa fija, que en Twitch puede ser la columna entera del chat. Desde entonces el bloque solo oculta, y nunca un bloque con más contenido que el propio aviso. Se dio por hecho un cambio de puente que no había ocurrido, porque el puente en uso era el mismo, y se diagnosticó un fallo en la renovación de puentes que el código no tenía; los dos errores se corrigieron en la bitácora. Recortar cifrados del saludo TLS para «blindar» TLS 1.2 cambió la huella del navegador y lo hacía parecer un programa automático; se volvió al saludo de Firefox y la protección pasó a aplicarse después del saludo. La primera versión de esa protección cortaba la página sin mostrar nada; ahora explica qué pasó. Llevar el vídeo por un circuito propio rompió el reproductor de Twitch; una prueba con `curl` del permiso de vídeo había parecido indicar lo contrario, y la lección es probar con el navegador real. Por último, los textos largos escritos en la consola de Bash se cortaban o perdían barras invertidas: los cambios se aplican desde archivos de parche.
+**Mistakes during speed testing.** An interrupted diagnostic test left `SafeLogging 0` in the Tor engine in use, and for about two hours its local log recorded the names of the sites visited; the line was removed and those names were deleted from the log. Since then diagnostics run on a separate test Tor, never on the one in use. A `pkill -f` command killed itself because its own command line contained the searched text; use `pgrep -f "[t]ext"`. And lowering `CircuitStreamTimeout` was proposed without first checking Tor accepted that value: the log showed it raises it to 10 s.
 
-**Errores de la tarde del 4 de octubre, en las pruebas de velocidad.** Una prueba de diagnóstico interrumpida dejó `SafeLogging 0` en el motor Tor de uso, y durante unas dos horas su registro local anotó los nombres de los sitios visitados; se quitó la línea y se borraron esos nombres del registro. Desde entonces los diagnósticos se hacen en un Tor de pruebas aparte, nunca en el de uso. Una orden `pkill -f` se mató a sí misma porque su propia línea de comando contenía el texto buscado, y dejó vivo un Tor de pruebas; se busca con `pgrep -f "[t]exto"`. Y se propuso bajar `CircuitStreamTimeout` sin comprobar antes que Tor admitiera ese valor: el registro mostró que lo sube a 10 s.
+**Mistakes in the audit.** A supposed memory leak in the notices block was announced as serious and a controlled test ruled it out: Firefox already cut the timers when the page disconnected. Since then, before calling something a fault, it is reproduced with a test that also fails without the fix. The audit did find three real defects. The launcher died without opening the browser if the session file was missing, and since it runs windowless nobody saw the error. The direct gate tried a single address with a twenty-second timeout. And the launcher counted any `librewolf.exe`, including test ones, as the Browser being open. It was also checked that `parent.lock` stays in the profile with the browser closed: the reliable signal is that Windows will not let it be opened.
 
-**Errores de la noche del 4 de octubre, en la auditoría.** Se anunció como fallo serio que los temporizadores del bloque de avisos retenían las páginas viejas en memoria, y una prueba con control lo descartó: Firefox ya los cortaba al desconectar la página. Desde entonces, antes de dar algo por fallo se reproduce con una prueba que también falle sin el arreglo. La auditoría encontró además tres defectos reales. El lanzador moría sin abrir el navegador si faltaba el archivo de sesión, y como corre sin ventana nadie veía el error. La puerta directa probaba una sola dirección con veinte segundos de plazo. Y el lanzador contaba como Browser abierto cualquier `librewolf.exe`, incluidos los de las pruebas. También se comprobó que `parent.lock` sigue en el perfil con el navegador cerrado: la señal fiable es que Windows no deje abrirlo. Tres pruebas fallaban por sí mismas, porque dependían de la velocidad de la red o de una decisión ya cambiada, y una cuarta porque `check.torproject.org` no permite que otras páginas lean su respuesta (CORS).
+**A request that was declined.** Disguising the Tor exit IP as one's own machine, to waste the time of whoever scanned it, was declined. That IP belongs to a volunteer who runs the relay: turning it into a decoy directs scans at a third party who did not authorize it, and nothing configured on this PC changes what that relay shows.
 
-**Una petición que no se atendió.** Se pidió disfrazar la IP de salida de Tor como un equipo propio para hacer perder el tiempo a quien la escaneara. Esa IP pertenece a un voluntario que opera el relevo: convertirla en señuelo dirige los escaneos contra un tercero que no lo autorizó, y nada de lo configurado en este equipo cambia lo que ese relevo muestra.
+## 11. What to review after updates
 
-## 11. Aspectos que conviene revisar
+Every major update should be followed by a review. After updating LibreWolf (with `UPDATE BROWSER.bat`, with the Browser closed), press `SET UP BROWSER.bat`. After a major Windows update, press `HOW IS MY PC.bat` and `SET UP FIREWALL.bat`. After updating your PC maker's drivers, check that their telemetry services have not come back to Automatic. The task `Sentinel-Daily-Restore-Point` creates a restore point every day at 13:00; remove it with `Install.ps1 -Remove` if you do not want it.
 
-El más urgente es actualizar LibreWolf: la versión instalada es la 156.0.1 y la 157.0-1 se publicó el 28 de septiembre. Se hace con `UPDATE BROWSER.bat`, con el Browser cerrado, y después conviene pasar las pruebas de `Browser\pruebas`. El requisito de velocidad no se alcanza con un puente público compartido (apartado 9.7); la candidata que entra por el puente y sale por relevos de Estados Unidos y Canadá se acercó al objetivo, pero fijar países reduce el anonimato y la decisión corresponde al propietario. Él decide también, sitio por sitio, si los que rechazan a toda la red Tor (Policía, SISBÉN, Stack Overflow, Falabella, Éxito) pasan a `direct.txt`, y cuál será el browser predeterminado (Bing por Tor o DuckDuckGo). Falta confirmar en el navegador real que los avisos de términos y de reglas del chat ya no aparecen en Twitch; los avisos de cookies de TikTok y Twitch ya no aparecen en las pruebas. Las dos claves de OpenRouter siguen escritas en claro en el perfil de PowerShell (`Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1`) y deben rotarse. La tarea `Sentinel-Daily-Restore-Point`, que crea un punto de restauración cada día a las 13:00, sigue activa a la espera de decisión, y las cuatro tareas de ASUS continúan activas por decisión propia. Por último, desde el 25 de septiembre el equipo deja de contestar al router por IPv6 a los pocos minutos de cada conexión; con IPv4 preferido no afecta, aunque la causa no se ha aislado.
+## 12. Available buttons
 
-Cada actualización importante debe ir seguida de una revisión. Tras actualizar LibreWolf se pulsa `SET UP BROWSER.bat`; tras actualizar el controlador gráfico de Intel se revisa el servicio del apartado 4.3; tras una actualización grande de Windows se pulsan `HOW IS MY PC.bat` y `SET UP FIREWALL.bat`.
-
-## 12. Botones disponibles
-
-| Botón en `Downloads\` | Función |
+| Button in `buttons\` | Function |
 |---|---|
-| `HARDEN MY PC` | Endurecimiento base en nueve capas |
-| `MOVIE-GRADE PROTECTION` / `REMOVE MOVIE-GRADE PROTECTION` | DNS local, informes de error en local, MAC aleatoria |
-| `SET UP FIREWALL` | Cortafuegos completo con reversor de 10 minutos |
-| `SET UP BROWSER` | Browser, Edge paralizado, Tor siempre, salida elegida, puerta directa y candado |
-| `UPDATE BROWSER` | Actualiza LibreWolf verificando la firma y repone lo propio |
-| `CHECK MY PROTECTION` | Verificación de TLS, anuncios, conexiones, telemetría, las tres salidas del Browser y la puerta directa |
-| `HOW IS MY PC` / `WHAT WOULD IT BLOCK` | Auditoría y simulacro sin cambios |
-| `VER MIS INFORMES DE ERRORES` | Monitor de confiabilidad |
-| `IF I LOSE INTERNET` | Restaura red y cortafuegos desde el respaldo |
-| `BLOQUEAR NODE` / `DESBLOQUEAR NODE` | Node.js solo cuando una tarea lo necesita |
-| `ACTUALIZAR DRIVERS INTEL` | Asistente de Intel bajo demanda |
+| `HOW IS MY PC` | Read-only audit with a score per area |
+| `HARDEN MY PC` | Base hardening in nine layers |
+| `WHAT WOULD IT BLOCK` | What folder protection would have blocked; offers to switch it to block |
+| `REPAIR WHAT WAS MISSED` | Re-runs the ports layer only |
+| `MOVIE-GRADE PROTECTION` / `REMOVE MOVIE-GRADE PROTECTION` | Local DNS, local error reports, random MAC |
+| `SET UP FIREWALL` | Full firewall with 10-minute auto-revert |
+| `SET UP BROWSER` | Browser, Edge disabled, Tor always on, chosen exit, direct gate and lock |
+| `UPDATE BROWSER` | Updates LibreWolf verifying the signature and restores the custom parts |
+| `CHECK MY PROTECTION` | Checks TLS, ads, connections, telemetry, the three Browser exits and the direct gate |
+| `IF I LOSE INTERNET` | Restores network and firewall from the backup |

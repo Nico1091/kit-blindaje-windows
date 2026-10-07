@@ -1,129 +1,129 @@
-# Manual del kit de blindaje y privacy para Windows 11
+# Manual of the hardening and privacy kit for Windows 11
 
-## 1. Qué es
+## 1. What it is
 
-El kit endurece Windows 11 Home o Pro en nueve capas, reduce la telemetría sin romper las actualizaciones, cierra el cortafuegos, resuelve los nombres de dominio en el propio equipo sin pasar por terceros y añade un navegador privado, el Browser, que sale a internet por la red Tor. Se maneja con buttons de doble clic. Cada script ofrece simulacro, guarda un respaldo antes de cambiar nada, y los que tocan la red se deshacen solos a los diez minutos si el usuario no confirma que conserva la conexión.
+The kit hardens Windows 11 Home or Pro in nine layers, reduces telemetry without breaking updates, locks down the firewall, resolves domain names on the PC itself without going through third parties, and adds a private browser, the Browser, that reaches the Internet through the Tor network. It is driven by double-click buttons. Every script offers a dry run, saves a backup before changing anything, and the ones that touch the network undo themselves after ten minutes unless the user confirms the connection still works.
 
-El kit no contiene credentials, claves, direcciones de equipo ni datos de ninguna persona. Las rutas se calculan en cada equipo a partir de la carpeta del usuario.
+The kit contains no credentials, keys, device addresses or data about anyone. Paths are worked out on each PC from the user's folder.
 
-## 2. Estructura del paquete
+## 2. Package layout
 
 ```
 kit-blindaje-windows\
-├── INSTALL-KIT.bat          copia todo a su lugar (paso único de instalación)
-├── MANUAL.md                 este documento
-├── PROTECTION-GUIDE.md   detalle técnico de cada medida
-├── Run-All.ps1                  orquestador del blindaje completo
-├── Install.ps1              registra los lanzadores del sistema
+├── INSTALL-KIT.bat          copies everything into place (the only install step)
+├── MANUAL.md                this document
+├── PROTECTION-GUIDE.md      technical detail of every measure
+├── Run-All.ps1              orchestrates the full hardening
+├── Install.ps1              registers the system launchers
 ├── Harden.ps1 · Restore.ps1 · Audit.ps1 · Audit-Admin.ps1
-├── Movie-Grade.ps1        DNS local, MAC aleatoria, informes de error locales
+├── Movie-Grade.ps1          local DNS, random MAC, local error reports
 ├── Remaining-Telemetry.ps1 · Windows-Services.ps1 · Disable-Microsoft.ps1 · Disable-Edge.ps1
 ├── Setup-Firewall.ps1 · Network-Blocker.ps1 · Paranoia.ps1 · IP-Always-Hidden.ps1
 ├── Find-Backdoors.ps1 · Migrate-Launchers.ps1 · Checker.py
 ├── Setup-Browser.ps1 · Smiley-Browser.ps1 · Update-LibreWolf.ps1
-├── lib\                      núcleo compartido (bitácora, respaldos, reversor)
-├── Browser\                 lanzador, motores Tor, página de inicio y configuración
-└── buttons\                  los once accesos de doble clic
+├── lib\                     shared core (log, backups, auto-revert)
+├── Browser\                 launcher, Tor engines, start page and configuration
+└── buttons\                 the eleven double-click shortcuts
 ```
 
-Los respaldos, bitácoras e informes se crean en el equipo del usuario, dentro de `%USERPROFILE%\Security`, y nunca forman parte del paquete.
+Backups, logs and reports are created on the user's PC, inside `%USERPROFILE%\Security`, and are never part of the package.
 
-## 3. Requisitos
+## 3. Requirements
 
-- Windows 11 Home o Pro y una cuenta de administrador.
-- Python 3.11 o superior, para el Browser y el comprobador.
-- Para el Browser: WSL con una distribución Ubuntu y el paquete `tor` instalado dentro de ella (`sudo apt install tor`). LibreWolf lo instala la propia configuración mediante `winget`.
+- Windows 11 Home or Pro and an administrator account.
+- Python 3.11 or later, for the Browser and the checker.
+- For the Browser: WSL with an Ubuntu distribution and the `tor` package installed inside it (`sudo apt install tor`). LibreWolf is installed by the setup itself through `winget`.
 
-## 4. Instalación
+## 4. Installation
 
-1. Cree un punto de restauración de Windows.
-2. Haga doble clic en `INSTALL-KIT.bat`. Copia el kit a `%USERPROFILE%\Security` y los buttons a una carpeta «Kit de blindaje» en el Escritorio. No pide permisos de administrador ni cambia ninguna configuración.
-3. Abra la carpeta del Escritorio y ejecute primero **WHAT WOULD IT BLOCK**.
-4. Si el resumen le parece bien, ejecute **HARDEN MY PC**.
+1. Create a Windows restore point.
+2. Double-click `INSTALL-KIT.bat`. It copies the kit to `%USERPROFILE%\Security` and the buttons to a "Hardening kit" folder on the Desktop. It does not ask for administrator rights or change any setting.
+3. Open that Desktop folder and run **HOW IS MY PC** first.
+4. If the report looks right to you, run **HARDEN MY PC**.
 
-## 5. Los buttons
+## 5. The buttons
 
-| Botón | Qué hace | Cambia el equipo |
+| Button | What it does | Changes the PC |
 |---|---|---|
-| WHAT WOULD IT BLOCK | Simulacro del blindaje completo | No |
-| HOW IS MY PC | Auditoría con puntaje por área | No |
-| CHECK MY PROTECTION | Verifica DNS, cortafuegos, Tor y Browser | No |
-| HARDEN MY PC | Aplica las nueve capas, con reversor de diez minutos | Sí |
-| REPAIR WHAT WAS MISSED | Reaplica lo que Windows haya revertido | Sí |
-| SET UP FIREWALL | Entrada cerrada y salida mínima | Sí |
-| MOVIE-GRADE PROTECTION | DNS local (Unbound), MAC aleatoria, informes de error locales | Sí |
-| REMOVE MOVIE-GRADE PROTECTION | Deshace el nivel película | Sí |
-| SET UP BROWSER | Instala y configura el Browser | Sí |
-| UPDATE BROWSER | Actualiza LibreWolf y conserva la configuración | Sí |
-| IF I LOSE INTERNET | Restaura cortafuegos y servicios desde el último respaldo | Sí |
+| HOW IS MY PC | Audit with a score per area | No |
+| CHECK MY PROTECTION | Checks DNS, firewall, Tor and Browser | No |
+| WHAT WOULD IT BLOCK | Lists what ransomware folder protection would have blocked in the last 14 days | Only if you accept switching it to block |
+| HARDEN MY PC | Applies the nine layers, with a ten-minute auto-revert | Yes |
+| REPAIR WHAT WAS MISSED | Re-runs only the ports layer (for installs hardened before a firewall-rule bug was fixed) | Yes |
+| SET UP FIREWALL | Inbound closed and minimal outbound | Yes |
+| MOVIE-GRADE PROTECTION | Local DNS (Unbound), random MAC, local error reports | Yes |
+| REMOVE MOVIE-GRADE PROTECTION | Undoes movie-grade protection | Yes |
+| SET UP BROWSER | Installs and configures the Browser | Yes |
+| UPDATE BROWSER | Updates LibreWolf and keeps the configuration | Yes |
+| IF I LOSE INTERNET | Restores the firewall and services from the latest backup | Yes |
 
-Todos piden permiso de administrador por sí solos cuando lo necesitan.
+All of them ask for administrator permission on their own when they need it.
 
-## 6. Uso manual, sin buttons
+## 6. Manual use, without buttons
 
-Abra PowerShell como administrador y sitúese en la carpeta del kit:
+Open PowerShell as administrator and go to the kit folder:
 
 ```powershell
 cd $env:USERPROFILE\Security
 Set-ExecutionPolicy -Scope Process Bypass
 ```
 
-Sin `-Apply`, los scripts que lo admiten solo muestran lo que harían.
+Without `-Apply`, the scripts that support it only show what they would do.
 
-| Tarea | Comando |
+| Task | Command |
 |---|---|
-| Simulacro del blindaje completo | `.\Run-All.ps1 -DryRun` |
-| Blindaje completo | `.\Run-All.ps1` |
-| Blindar solo algunas capas | `.\Harden.ps1 -Apply -Layers defender,ports,privacy` |
-| Cambiar el plazo del reversor | `.\Harden.ps1 -Apply -RevertMinutes 15` |
-| Auditoría | `.\Audit.ps1` |
-| Restaurar desde un respaldo | `.\Restore.ps1 -ListBackups` y luego `.\Restore.ps1 -Backup <nombre>` |
-| Restauración de emergencia | `.\Restore.ps1 -Emergency` |
-| Nivel película | `.\Movie-Grade.ps1 -Apply` (solo DNS: `-DnsOnly`) |
-| Remove nivel película | `.\Movie-Grade.ps1 -Revert` |
-| Telemetría restante | `.\Remaining-Telemetry.ps1 -Apply` |
-| Servicios de Windows | `.\Windows-Services.ps1 -Apply` |
-| Cortafuegos | `.\Setup-Firewall.ps1` |
-| Buscar puertas traseras | `.\Find-Backdoors.ps1` |
-| Configurar el Browser | `.\Setup-Browser.ps1` |
+| Dry run of the full hardening | `.\Run-All.ps1 -DryRun` |
+| Full hardening | `.\Run-All.ps1` |
+| Harden only some layers | `.\Harden.ps1 -Apply -Layers defender,ports,privacy` |
+| Change the auto-revert delay | `.\Harden.ps1 -Apply -RevertMinutes 15` |
+| Audit | `.\Audit.ps1` |
+| Restore from a backup | `.\Restore.ps1 -ListBackups` then `.\Restore.ps1 -Backup <name>` |
+| Emergency restore | `.\Restore.ps1 -Emergency` |
+| Movie-grade protection | `.\Movie-Grade.ps1 -Apply` (DNS only: `-DnsOnly`) |
+| Remove movie-grade protection | `.\Movie-Grade.ps1 -Revert` |
+| Remaining telemetry | `.\Remaining-Telemetry.ps1 -Apply` |
+| Windows services | `.\Windows-Services.ps1 -Apply` |
+| Firewall | `.\Setup-Firewall.ps1` |
+| Look for backdoors | `.\Find-Backdoors.ps1` |
+| Set up the Browser | `.\Setup-Browser.ps1` |
 
-Casi todos los scripts que cambian algo aceptan `-Revert` para deshacerlo: `Apagar-Edge`, `Apagar-Microsoft`, `Bloqueador-Red`, `Smiley-Browser`, `Configurar-Cortafuegos`, `IP-Siempre-Oculta`, `Paranoia`, `Servicios-Windows` y `Telemetria-Restante`.
+Almost every script that changes something accepts `-Revert` to undo it: `Disable-Edge`, `Disable-Microsoft`, `Network-Blocker`, `Smiley-Browser`, `Setup-Firewall`, `IP-Always-Hidden`, `Paranoia`, `Windows-Services` and `Remaining-Telemetry`.
 
-## 7. El Browser
+## 7. The Browser
 
-El Browser es LibreWolf con una configuración propia y una smiley amarilla como ícono. Sale a internet por Tor, que corre dentro de WSL, y no usa el DNS del proveedor. Borra cookies y caché al cerrar, salvo las de los dominios listados en `CONSERVAR`, dentro de `Browser\launch_browser.pyw`, donde el usuario agrega los sitios cuya sesión quiere mantener.
+The Browser is LibreWolf with its own configuration and a yellow smiley as its icon. It reaches the Internet through Tor, which runs inside WSL, and does not use your ISP's DNS. It deletes cookies and cache on close, except for the domains listed in `CONSERVAR` inside `Browser\launch_browser.pyw`, where you add the sites whose session you want to keep.
 
-Viene con la entrada directa a Tor. Para usar puentes WebTunnel, péguelos en `~/.smiley/bridges.sh` dentro de WSL y cambie `"entrada": "puente"` en `Browser\speed.json`. Los sitios que rechazan a toda la red Tor se anotan en `Browser\direct.txt` (salen con la IP real, solo esos), y los que bloquean por país, en `Browser\chosen_exit.txt`.
+It ships with direct entry to Tor. To use WebTunnel bridges, paste them into `~/.smiley/bridges.sh` inside WSL and set `"entrada": "puente"` in `Browser\speed.json`. Sites that reject the whole Tor network go in `Browser\direct.txt` (they go out with your real IP, only those), and sites that block by country, in `Browser\chosen_exit.txt`, on the `countries:` line.
 
-## 8. Advertencias: consecuencias de usarlo
+## 8. Warnings: consequences of using it
 
-- **Cambia la configuración del sistema.** El kit toca el cortafuegos, servicios, el registro y políticas locales. Cada cambio deja respaldo, pero si algo falla el equipo puede quedarse sin internet hasta pulsar **IF I LOSE INTERNET**.
-- **Algunas funciones dejan de servir.** Compartir archivos e impresoras en red, transmitir a un televisor, Wi-Fi Direct, Escritorio remoto, Teléfono vinculado, la Xbox Game Bar y las aplicaciones que abren Edge por su cuenta pueden fallar o pedir que se reactiven a mano.
-- **Reducir la telemetría tiene un precio.** Microsoft puede limitar funciones o pedir verificaciones adicionales en cuentas que reportan poco. Por eso el kit no bloquea los dominios de Microsoft, y aun así el riesgo no es cero.
-- **Tor no es para todo.** Muchos sitios piden captcha o bloquean la red Tor. Bancos, billeteras y plataformas de pago pueden bloquear o congelar una cuenta a la que se entra desde Tor: no los use desde el Browser. Tor oculta la IP, pero no hace anónimo a quien inicia sesión con su nombre, y lo ilegal sigue siendo ilegal. Compruebe que usar Tor sea legal en su país.
-- **La MAC aleatoria** hace que las redes con filtrado por MAC o con portal de acceso traten al equipo como nuevo y pidan entrar otra vez.
-- **El DNS local** depende de que Unbound esté en marcha. Si se detiene, las páginas no abren hasta reiniciarlo o quitarlo con **REMOVE MOVIE-GRADE PROTECTION**.
-- **No lo use en equipos de trabajo, de estudio ni administrados por terceros** sin autorización escrita del administrador.
-- **Sin garantía.** El kit se entrega tal cual. Quien lo aplica asume las consecuencias de los cambios en su equipo.
+- **It changes system settings.** The kit touches the firewall, services, the registry and local policies. Every change leaves a backup, but if something fails the PC may lose Internet until you press **IF I LOSE INTERNET**.
+- **Some features stop working.** File and printer sharing, casting to a TV, Wi-Fi Direct, Remote Desktop, Phone Link, the Xbox Game Bar and apps that open Edge on their own may fail or need to be re-enabled by hand.
+- **Reducing telemetry has a price.** Microsoft may limit features or ask for extra verification on accounts that report little. That is why the kit does not block Microsoft domains, and even so the risk is not zero.
+- **Tor is not for everything.** Many sites show captchas or block the Tor network. Banks, wallets and payment platforms may block or freeze an account accessed from Tor: do not use them from the Browser. Tor hides your IP, but it does not make anonymous someone who signs in with their name, and what is illegal stays illegal. Check that using Tor is legal in your country.
+- **A random MAC** makes networks with MAC filtering or a captive portal treat the PC as new and ask you to sign in again.
+- **The local DNS** depends on Unbound running. If it stops, pages will not open until it is restarted or removed with **REMOVE MOVIE-GRADE PROTECTION**.
+- **Do not use it on work, school or third-party managed computers** without written permission from the administrator.
+- **No warranty.** The kit is provided as is. Whoever applies it accepts the consequences of the changes on their PC.
 
-## 9. Donaciones
+## 9. Donations
 
-El kit es gratuito para uso personal. Quien quiera apoyarlo puede donar a estas direcciones de recepción:
+The kit is free for personal use. If you want to support it, you can donate to these receiving addresses:
 
-- **Bitcoin**, solo por la red **Bitcoin (BTC)**: `1ED8zqpXYS4MspjZn29s2Bo4WQLgnMM5yi`
-- **Ethereum**, solo por la red **Ethereum (ERC20)**: `0x1e47c2a6f0401f4df82bf2c83238608a354da696`
+- **Bitcoin**, only on the **Bitcoin (BTC)** network: `1ED8zqpXYS4MspjZn29s2Bo4WQLgnMM5yi`
+- **Ethereum**, only on the **Ethereum (ERC20)** network: `0x1e47c2a6f0401f4df82bf2c83238608a354da696`
 
-Antes de donar, tenga en cuenta lo siguiente:
+Before donating, keep in mind:
 
-- **Use exactamente la red indicada.** Un envío por otra red (BEP20, TRC20, Arbitrum u otra) o de otra moneda a estas direcciones se pierde y no se puede recuperar.
-- **Copie la dirección de este repositorio oficial y compruebe los primeros y los últimos caracteres** antes de enviar. Hay programas maliciosos que cambian la dirección copiada en el portapapeles.
-- **Las donaciones son voluntarias y no reembolsables.** No compran soporte, garantía ni prioridad.
-- **Nadie del proyecto le pedirá jamás** frases semilla, claves privadas, contraseñas ni códigos de verificación. Quien lo haga en nombre del proyecto es un estafador.
-- Las direcciones pertenecen a una cuenta de un exchange. Si alguna cambia, la vigente será siempre la de este manual en el repositorio oficial.
+- **Use exactly the network shown.** Anything sent on another network (BEP20, TRC20, Arbitrum or other), or any other coin, sent to these addresses is lost and cannot be recovered.
+- **Copy the address from this official repository and check the first and last characters** before sending. Some malware swaps the copied address on the clipboard.
+- **Donations are voluntary and non-refundable.** They do not buy support, a warranty or priority.
+- **Nobody from the project will ever ask you** for seed phrases, private keys, passwords or verification codes. Anyone who does in the project's name is a scammer.
+- The addresses belong to an exchange account. If one changes, the valid one will always be the one in this manual in the official repository.
 
-## 10. Desinstalar
+## 10. Uninstall
 
-1. Pulse **REMOVE MOVIE-GRADE PROTECTION** si lo aplicó.
-2. En PowerShell como administrador, desde `%USERPROFILE%\Security`, ejecute `.\Restore.ps1 -ListBackups` y restaure el respaldo anterior al blindaje con `.\Restore.ps1 -Backup <nombre>`.
-3. Quite los lanzadores registrados con `.\Install.ps1 -Remove`.
-4. Borre la carpeta `%USERPROFILE%\Security` y la carpeta «Kit de blindaje» del Escritorio.
+1. Press **REMOVE MOVIE-GRADE PROTECTION** if you applied it.
+2. In PowerShell as administrator, from `%USERPROFILE%\Security`, run `.\Restore.ps1 -ListBackups` and restore the backup from before hardening with `.\Restore.ps1 -Backup <name>`.
+3. Remove the registered launchers with `.\Install.ps1 -Remove`.
+4. Delete the `%USERPROFILE%\Security` folder and the "Hardening kit" folder on the Desktop.

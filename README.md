@@ -1,67 +1,68 @@
-# Kit de blindaje y privacy para Windows 11
+# Hardening and privacy kit for Windows 11
 
-Endurecimiento de Windows 11 Home o Pro en nueve capas, reducción de telemetría sin romper las actualizaciones, cortafuegos estricto, resolución de nombres local sin terceros y un navegador privado («Browser») que sale a internet por la red Tor. Todo funciona con buttons de doble clic. Ningún cambio se aplica sin respaldo previo, y los que tocan la red se deshacen solos a los diez minutos si usted no confirma que sigue teniendo internet.
+Nine-layer hardening for Windows 11 Home or Pro, telemetry reduction that does not break updates, a strict firewall, local name resolution with no third parties, and a private browser ("Browser") that reaches the Internet through the Tor network. Everything runs from double-click buttons. No change is applied without a prior backup, and the ones that touch the network undo themselves after ten minutes unless you confirm you still have Internet.
 
-## Qué trae
+## What it includes
 
-| Botón (carpeta `botones`) | Qué hace |
+| Button (`buttons` folder) | What it does |
 |---|---|
-| WHAT WOULD IT BLOCK | Simulacro: muestra lo que cambiaría, sin tocar nada |
-| HARDEN MY PC | Aplica las nueve capas: Defender, ports, locks, privacy, stealth, máquinas virtuales, controladores, credentials y ransomware |
-| HOW IS MY PC | Auditoría con puntaje por área |
-| SET UP FIREWALL | Bloquea la entrada y deja salir solo lo necesario |
-| MOVIE-GRADE PROTECTION | Resolución de nombres local (Unbound), MAC aleatoria e informes de error guardados en el equipo |
-| REMOVE MOVIE-GRADE PROTECTION | Deshace lo anterior |
-| SET UP BROWSER | Instala y configura el navegador privado |
-| UPDATE BROWSER | Actualiza LibreWolf y conserva la configuración |
-| CHECK MY PROTECTION | Verifica que todo siga en pie |
-| REPAIR WHAT WAS MISSED | Vuelve a aplicar lo que Windows haya revertido |
-| IF I LOSE INTERNET | Restaura cortafuegos y servicios desde el último respaldo |
+| HOW IS MY PC | Read-only audit with a score per area; changes nothing |
+| HARDEN MY PC | Applies the nine layers: Defender, ports, locks, privacy, stealth, virtual machines, drivers, credentials and ransomware |
+| WHAT WOULD IT BLOCK | Lists the programs that ransomware folder protection would have blocked, and offers to switch it from watch to block |
+| SET UP FIREWALL | Blocks inbound traffic and lets out only what is needed |
+| MOVIE-GRADE PROTECTION | Local name resolution (Unbound), random MAC and error reports kept on the PC |
+| REMOVE MOVIE-GRADE PROTECTION | Undoes the above |
+| SET UP BROWSER | Installs and configures the private browser |
+| UPDATE BROWSER | Updates LibreWolf and keeps its configuration |
+| CHECK MY PROTECTION | Verifies that everything is still in place |
+| REPAIR WHAT WAS MISSED | Re-runs only the ports layer, for installs hardened before a firewall-rule bug was fixed |
+| IF I LOSE INTERNET | Restores the firewall and services from the latest backup |
 
-La guía completa, con cada medida, su comando y cómo se deshace, está en `PROTECTION-GUIDE.md`.
+The full guide, with every measure, its command and how to undo it, is in `PROTECTION-GUIDE.md`.
 
-## Requisitos
+## Requirements
 
-- Windows 11 Home o Pro, con una cuenta de administrador.
-- Python 3.11 o superior, para el Browser y el comprobador.
-- Para el Browser: WSL con una distribución Ubuntu y el paquete `tor` instalado dentro (`sudo apt install tor`). LibreWolf se instala con `winget` durante la configuración.
+- Windows 11 Home or Pro, with an administrator account.
+- Python 3.11 or later, for the Browser and the checker.
+- For the Browser: WSL with an Ubuntu distribution and the `tor` package installed inside it (`sudo apt install tor`). LibreWolf is installed with `winget` during setup.
 
-## Instalación
+## Installation
 
-1. Cree un punto de restauración de Windows.
-2. Haga doble clic en `INSTALL-KIT.bat`. Copia el kit a `%USERPROFILE%\Security` y los buttons a la carpeta «Kit de blindaje» del Escritorio, sin cambiar ninguna configuración.
-3. Ejecute primero **WHAT WOULD IT BLOCK** y lea el resumen.
-4. Si está de acuerdo, ejecute **HARDEN MY PC**. Los buttons piden permiso de administrador por sí solos.
+1. Create a Windows restore point.
+2. Double-click `INSTALL-KIT.bat`. It copies the kit to `%USERPROFILE%\Security` and the buttons to a "Hardening kit" folder on the Desktop, without changing any setting.
+3. Run **HOW IS MY PC** first and read the report.
+4. If you agree, run **HARDEN MY PC**. The buttons ask for administrator permission on their own.
 
-## Lo que conviene saber antes
+## Good to know first
 
-- Defender sigue activo. El kit lo refuerza, no lo reemplaza.
-- La telemetría de Windows se reduce, pero no se bloquean los dominios de Microsoft: hacerlo puede romper las actualizaciones y la activación.
-- El Browser viene con la entrada directa a Tor. Los puentes (WebTunnel) son opcionales: se pegan en `~/.smiley/bridges.sh` dentro de WSL y se cambia `"entrada": "puente"` en `Browser\speed.json`.
-- Los sitios que deben salir sin Tor se anotan en `Browser\direct.txt`, y los que bloquean por país, en `Browser\chosen_exit.txt`.
+- Defender stays on. The kit reinforces it; it does not replace it.
+- Windows telemetry is reduced, but Microsoft domains are not blocked: doing so can break updates and activation.
+- The Browser ships with direct entry to Tor. Bridges (WebTunnel) are optional: paste them into `~/.smiley/bridges.sh` inside WSL and set `"entrada": "puente"` in `Browser\speed.json`.
+- Sites that must go out without Tor go in `Browser\direct.txt`, and sites that block by country, in `Browser\chosen_exit.txt`.
+- Configuration keys inside `speed.json` and a few internal names are still in Spanish; the comments next to them explain each one.
 
-## Advertencias: consecuencias de usarlo
+## Warnings: consequences of using it
 
-Lea esto antes de pulsar cualquier botón que no sea un simulacro.
+Read this before pressing any button other than HOW IS MY PC.
 
-- **Cambia la configuración del sistema.** Toca el cortafuegos, servicios de Windows, el registro y políticas locales. Cada cambio deja respaldo, pero si algo sale mal usted puede quedarse sin internet hasta pulsar **IF I LOSE INTERNET**.
-- **Algunas funciones dejan de servir.** Compartir archivos e impresoras en red, transmitir a un televisor, Wi-Fi Direct, Escritorio remoto, Teléfono vinculado, la Xbox Game Bar y las aplicaciones que abren Edge por su cuenta (widgets, ayuda) pueden fallar o pedir que se reactiven a mano.
-- **Reducir la telemetría tiene un precio.** Microsoft puede limitar funciones o pedir verificaciones adicionales en cuentas que reportan poco. Por eso el kit no bloquea los dominios de Microsoft, y aun así el riesgo no es cero.
-- **Tor no es para todo.** Muchos sitios piden captcha o bloquean la red Tor. Los bancos, las billeteras y las plataformas de pago pueden bloquear o congelar una cuenta a la que se entra desde Tor: no los use desde el Browser. Tor oculta su IP, no lo vuelve anónimo si inicia sesión con su nombre, y lo que sea ilegal sigue siéndolo. Verifique que usar Tor sea legal donde usted vive.
-- **La MAC aleatoria** hace que las redes con filtrado por MAC o con portal de acceso (hoteles, universidades) lo traten como un equipo nuevo y le pidan entrar otra vez.
-- **La resolución de nombres local** depende de que Unbound esté corriendo. Si se detiene, las páginas no abren hasta que se reinicie o se quite con **REMOVE MOVIE-GRADE PROTECTION**.
-- **No lo use en equipos de trabajo, de estudio ni administrados por otra persona** sin autorización escrita del administrador: puede violar sus políticas y dejar el equipo fuera de su gestión.
-- **Haga un punto de restauración** de Windows antes de empezar.
+- **It changes system settings.** It touches the firewall, Windows services, the registry and local policies. Every change leaves a backup, but if something goes wrong you may lose Internet until you press **IF I LOSE INTERNET**.
+- **Some features stop working.** File and printer sharing, casting to a TV, Wi-Fi Direct, Remote Desktop, Phone Link, the Xbox Game Bar and apps that open Edge on their own (widgets, help) may fail or need to be re-enabled by hand.
+- **Reducing telemetry has a price.** Microsoft may limit features or ask for extra verification on accounts that report little. That is why the kit does not block Microsoft domains, and even so the risk is not zero.
+- **Tor is not for everything.** Many sites show captchas or block the Tor network. Banks, wallets and payment platforms may block or freeze an account accessed from Tor: do not use them from the Browser. Tor hides your IP; it does not make you anonymous if you sign in with your name, and whatever is illegal stays illegal. Check that using Tor is legal where you live.
+- **A random MAC** makes networks with MAC filtering or a captive portal (hotels, universities) treat you as a new device and ask you to sign in again.
+- **Local name resolution** depends on Unbound running. If it stops, pages will not open until it is restarted or removed with **REMOVE MOVIE-GRADE PROTECTION**.
+- **Do not use it on work, school or otherwise managed computers** without written permission from the administrator: it may violate their policies and take the PC out of their management.
+- **Create a Windows restore point** before you start.
 
-## Licencia y donaciones
+## License and donations
 
-Gratis para uso personal en sus propios equipos. Puede modificarlo para usted, pero no venderlo. Se entrega tal cual, sin garantía de ningún tipo: usted asume las consecuencias de los cambios que aplique.
+Free for personal use on your own computers. You may modify it for yourself, but not sell it. Provided as is, with no warranty of any kind: you accept the consequences of the changes you apply.
 
-Si le sirvió, puede apoyar el proyecto con una donación:
+If it helped you, you can support the project with a donation:
 
-- **Bitcoin**, solo por la red **Bitcoin (BTC)**: `1ED8zqpXYS4MspjZn29s2Bo4WQLgnMM5yi`
-- **Ethereum**, solo por la red **Ethereum (ERC20)**: `0x1e47c2a6f0401f4df82bf2c83238608a354da696`
+- **Bitcoin**, only on the **Bitcoin (BTC)** network: `1ED8zqpXYS4MspjZn29s2Bo4WQLgnMM5yi`
+- **Ethereum**, only on the **Ethereum (ERC20)** network: `0x1e47c2a6f0401f4df82bf2c83238608a354da696`
 
-Use exactamente esa red: lo que llegue por otra red (BEP20, TRC20, Arbitrum u otra) se pierde y no se puede recuperar. Compruebe los primeros y los últimos caracteres después de pegar la dirección, porque hay programas maliciosos que la cambian en el portapapeles. Las donaciones son voluntarias, no reembolsables y no compran soporte ni garantía. Solo se publican direcciones para **recibir**: nadie de este proyecto le pedirá jamás frases semilla, claves ni contraseñas, y cualquiera que lo haga a nombre del proyecto es un estafador.
+Use exactly that network: anything sent on another network (BEP20, TRC20, Arbitrum or other) is lost and cannot be recovered. Check the first and last characters after pasting the address, because some malware swaps it on the clipboard. Donations are voluntary, non-refundable and do not buy support or a warranty. Only **receiving** addresses are published: nobody from this project will ever ask you for seed phrases, keys or passwords, and anyone who does in the project's name is a scammer.
 
-El detalle completo está en `MANUAL.md` (instalación, buttons, uso manual, advertencias) y en `COMMANDS.md` (cada script y cada opción explicados).
+Full details are in `MANUAL.md` (installation, buttons, manual use, warnings) and `COMMANDS.md` (every script and option explained).
