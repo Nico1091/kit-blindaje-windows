@@ -1,6 +1,6 @@
 __pycache__/
 *.log
-Respaldos/
-Bitacora/
-Informes/
-LineaBase/
+Backups/
+Logs/
+Reports/
+Baseline/

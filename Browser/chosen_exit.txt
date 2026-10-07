@@ -1,0 +1,5 @@
+# Sitios que siguen por Tor pero SOLO por salidas de ciertos paises, porque bloquean por pais.
+# Linea "paises:" = codigos de pais permitidos. Debajo, un sitio por linea.
+# Tras cambiarlo, cierre y abra el Browser.
+
+paises: us ca de nl fr gb

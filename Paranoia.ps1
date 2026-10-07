@@ -1,8 +1,8 @@
-param([switch]$Revertir)
+param([switch]$Revert)
 # Paranoia: lo que aun salia de este equipo hacia Microsoft, hacia otros equipos de internet
 # o hacia la red local, cerrado. No toca la telemetria base ni dominios de Microsoft
-# (riesgo de bloqueo de Windows). Respaldo unico del estado original; -Revertir lo devuelve.
-$resp = "$env:USERPROFILE\Seguridad\Respaldos\paranoia-estado.json"
+# (riesgo de bloqueo de Windows). Backup unico del estado original; -Revert lo devuelve.
+$resp = "$env:USERPROFILE\Security\Backups\paranoia-state.json"
 
 $cambios = @(
     # Historial de actividad y portapapeles en la nube
@@ -32,7 +32,7 @@ Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services\NetBT\Parameters\Interfac
     $cambios += , @($_.PSPath, 'NetbiosOptions', 2)
 }
 
-if ($Revertir) {
+if ($Revert) {
     if (-not (Test-Path $resp)) { Write-Host 'No hay respaldo.'; exit 1 }
     $estado = Get-Content $resp -Raw | ConvertFrom-Json
     foreach ($e in $estado.registro) {
@@ -44,7 +44,7 @@ if ($Revertir) {
     exit
 }
 
-# Respaldo: solo se anota lo que aun no estaba anotado, para no pisar el estado original
+# Backup: solo se anota lo que aun no estaba anotado, para no pisar el estado original
 $estado = if (Test-Path $resp) { Get-Content $resp -Raw | ConvertFrom-Json } else { $null }
 $registro = @(if ($estado) { $estado.registro })
 foreach ($c in $cambios) {

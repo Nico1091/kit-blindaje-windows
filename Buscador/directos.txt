@@ -1,3 +1,0 @@
-# Sitios que salen DIRECTO (con su IP real) en vez de por Tor, porque rechazan a toda la red Tor.
-# Uno por linea: sitio  [dominios propios del mismo sitio, separados por espacios]
-# Lo que la pagina cargue de terceros sigue por Tor. Tras cambiarlo, cierre y abra el Buscador.
