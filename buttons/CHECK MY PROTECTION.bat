@@ -1,5 +1,5 @@
 @echo off
-title Comprobador
+title Checker
 python "%USERPROFILE%\Security\Checker.py"
 echo.
 pause

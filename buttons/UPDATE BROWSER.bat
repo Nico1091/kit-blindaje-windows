@@ -1,3 +1,3 @@
 @echo off
-rem Actualiza el Browser (LibreWolf) con firma verificada y repone la smiley y la IP oculta.
+rem Updates the Browser (LibreWolf) with a verified signature and restores the smiley and the hidden IP.
 powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process powershell -Verb RunAs -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','%USERPROFILE%\Security\Update-LibreWolf.ps1'"

@@ -1,23 +1,23 @@
 @echo off
 setlocal EnableExtensions
-title RESTAURAR RED - Sentinel
+title RESTORE NETWORK - Sentinel
 
 REM ===========================================================================
-REM  EL BOTON DE PANICO.
+REM  THE PANIC BUTTON.
 REM
-REM  Doble clic aqui si despues de blindar te quedaste sin Internet.
-REM  Devuelve el firewall y los servicios de red exactamente a como estaban.
-REM  Tarda menos de un minuto y no toca nada mas.
+REM  Double-click this if you lost Internet after hardening.
+REM  Puts the firewall and network services back exactly as they were.
+REM  Takes under a minute and touches nothing else.
 REM ===========================================================================
 
-set "SEGURIDAD=%USERPROFILE%\Security"
-if not exist "%SEGURIDAD%\Restore.ps1" set "SEGURIDAD=%USERPROFILE%\Security"
+set "SECDIR=%USERPROFILE%\Security"
+if not exist "%SECDIR%\Restore.ps1" set "SECDIR=%USERPROFILE%\Security"
 
-if not exist "%SEGURIDAD%\Restore.ps1" (
+if not exist "%SECDIR%\Restore.ps1" (
     echo.
-    echo   No encuentro la carpeta de seguridad.
+    echo   Cannot find the Security folder.
     echo.
-    echo   Ultimo recurso, escribe esto en PowerShell como administrador:
+    echo   Last resort: type this in PowerShell as administrator:
     echo.
     echo       netsh advfirewall reset
     echo       netsh advfirewall set allprofiles firewallpolicy blockinbound,allowoutbound
@@ -27,22 +27,22 @@ if not exist "%SEGURIDAD%\Restore.ps1" (
 )
 
 net session >nul 2>&1
-if %errorlevel% equ 0 goto YA_ADMIN
+if %errorlevel% equ 0 goto ALREADY_ADMIN
 
 echo.
-echo   Acepta el aviso de administrador para restaurar la red.
+echo   Accept the administrator prompt to restore the network.
 echo.
 powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
 exit /b 0
 
-:YA_ADMIN
+:ALREADY_ADMIN
 echo.
 echo   ============================================================
-echo               R E S T A U R A N D O   L A   R E D
+echo            R E S T O R I N G   T H E   N E T W O R K
 echo   ============================================================
 echo.
 
-powershell -NoProfile -ExecutionPolicy Bypass -File "%SEGURIDAD%\Restore.ps1" -Emergency
+powershell -NoProfile -ExecutionPolicy Bypass -File "%SECDIR%\Restore.ps1" -Emergency
 
 echo.
 pause

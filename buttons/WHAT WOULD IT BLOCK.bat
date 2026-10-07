@@ -1,58 +1,60 @@
 @echo off
 setlocal EnableExtensions
-title Sentinel - Que bloquearia la proteccion de carpetas
+title Sentinel - What folder protection would block
 
 REM ===========================================================================
-REM  La proteccion anti-ransomware de tus carpetas arranca en modo VIGILAR:
-REM  apunta lo que bloquearia, pero deja pasar todo.
+REM  Anti-ransomware folder protection starts in WATCH mode:
+REM  it records what it would block, but lets everything through.
 REM
-REM  Usa el equipo con normalidad unos dias y luego ejecuta esto. Te dira que
-REM  programas se habrian bloqueado. Si no hay ninguno tuyo en la lista, te
-REM  ofrece pasarla a bloquear de verdad.
+REM  Use the PC normally for a few days, then run this. It tells you which
+REM  programs would have been blocked. If none of yours are on the list, it
+REM  offers to switch it to real blocking.
 REM ===========================================================================
 
-set "SEGURIDAD=%USERPROFILE%\Security"
-if not exist "%SEGURIDAD%\Audit.ps1" set "SEGURIDAD=%USERPROFILE%\Security"
+set "SECDIR=%USERPROFILE%\Security"
+if not exist "%SECDIR%\Audit.ps1" set "SECDIR=%USERPROFILE%\Security"
 
-if not exist "%SEGURIDAD%\Audit.ps1" (
+if not exist "%SECDIR%\Audit.ps1" (
     echo.
-    echo   No encuentro la carpeta de seguridad.
+    echo   Cannot find the Security folder.
     echo.
     pause
     exit /b 1
 )
 
 net session >nul 2>&1
-if %errorlevel% equ 0 goto YA_ADMIN
+if %errorlevel% equ 0 goto ALREADY_ADMIN
 
 powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
 exit /b 0
 
-:YA_ADMIN
+:ALREADY_ADMIN
 mode con: cols=110 lines=45 >nul 2>&1
 
-powershell -NoProfile -ExecutionPolicy Bypass -File "%SEGURIDAD%\Audit.ps1" -Cfa -Days 14
+powershell -NoProfile -ExecutionPolicy Bypass -File "%SECDIR%\Audit.ps1" -Cfa -Days 14
 
 echo.
 echo   ------------------------------------------------------------------
-echo    Si arriba no aparece ningun programa tuyo, ya puedes pasar la
-echo    proteccion de VIGILAR a BLOQUEAR de verdad.
+echo    If none of your programs appear above, you can now switch the
+echo    protection from WATCH to real BLOCK.
 echo   ------------------------------------------------------------------
 echo.
-set /p RESPUESTA=   Pasarla a bloquear ahora? (S/N):
+set /p ANSWER=   Switch it to block now? (Y/N):
 
-if /i "%RESPUESTA%"=="S"  goto ACTIVAR
-if /i "%RESPUESTA%"=="SI" goto ACTIVAR
-goto SALIR
+if /i "%ANSWER%"=="Y"   goto ENABLE
+if /i "%ANSWER%"=="YES" goto ENABLE
+if /i "%ANSWER%"=="S"   goto ENABLE
+if /i "%ANSWER%"=="SI"  goto ENABLE
+goto QUIT
 
-:ACTIVAR
-powershell -NoProfile -ExecutionPolicy Bypass -Command "try { Set-MpPreference -EnableControlledFolderAccess Enabled -ErrorAction Stop; if ((Get-MpPreference).EnableControlledFolderAccess -eq 1) { Write-Host '   HECHO: tus carpetas quedan protegidas contra ransomware.' -ForegroundColor Green } else { Write-Host '   El cambio fue rechazado. Causa probable: Proteccion contra Manipulaciones.' -ForegroundColor Yellow } } catch { Write-Host ('   Fallo: ' + $_.Exception.Message) -ForegroundColor Red }"
+:ENABLE
+powershell -NoProfile -ExecutionPolicy Bypass -Command "try { Set-MpPreference -EnableControlledFolderAccess Enabled -ErrorAction Stop; if ((Get-MpPreference).EnableControlledFolderAccess -eq 1) { Write-Host '   DONE: your folders are now protected against ransomware.' -ForegroundColor Green } else { Write-Host '   The change was rejected. Likely cause: Tamper Protection.' -ForegroundColor Yellow } } catch { Write-Host ('   Failed: ' + $_.Exception.Message) -ForegroundColor Red }"
 echo.
-echo   Si algun programa tuyo deja de poder guardar, permitelo con:
-echo      Add-MpPreference -ControlledFolderAccessAllowedApplications "ruta\del\programa.exe"
+echo   If one of your programs can no longer save, allow it with:
+echo      Add-MpPreference -ControlledFolderAccessAllowedApplications "path\to\program.exe"
 echo.
 
-:SALIR
+:QUIT
 echo.
 pause
 endlocal

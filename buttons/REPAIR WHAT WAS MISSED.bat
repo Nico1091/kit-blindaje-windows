@@ -1,82 +1,82 @@
 @echo off
 setlocal EnableExtensions
-title Sentinel - Reparar lo que falto
+title Sentinel - Repair what was missed
 
 REM ===========================================================================
-REM  La primera pasada del blindaje dejo 78 reglas de firewall sin cerrar por
-REM  un fallo en el codigo, ya corregido:
+REM  The first hardening pass left 78 firewall rules open because of a bug
+REM  in the code, now fixed:
 REM
-REM    - "Get-NetFirewallRule -DisplayName X -Direction Inbound" es un error de
-REM      PowerShell (parametros de conjuntos distintos). Iba dentro de un catch
-REM      vacio, asi que tres barridos devolvieron cero SIN avisar.
-REM    - Los nombres de grupo de Windows en espanol llevan tildes y el codigo
-REM      los buscaba sin ellas.
-REM    - Set-SmbServerConfiguration no acepta -EnableInsecureGuestLogons, y eso
-REM      hacia fallar el bloque SMB entero.
+REM    - "Get-NetFirewallRule -DisplayName X -Direction Inbound" is a PowerShell
+REM      error (parameters from different sets). It sat inside an empty catch,
+REM      so three sweeps returned zero WITHOUT warning.
+REM    - Spanish Windows group names carry accents and the code searched
+REM      for them without.
+REM    - Set-SmbServerConfiguration does not accept -EnableInsecureGuestLogons,
+REM      which made the whole SMB block fail.
 REM
-REM  Esto vuelve a pasar SOLO la capa de ports, ya arreglada. Lo demas que ya
-REM  se aplico bien (Defender, locks, privacy, stealth, VM, credentials)
-REM  no se toca.
+REM  This re-runs ONLY the ports layer, now fixed. Everything else that was
+REM  already applied correctly (Defender, locks, privacy, stealth, VM,
+REM  credentials) is left alone.
 REM
-REM  Sigue habiendo respaldo previo y reversor de 10 minutos.
+REM  A prior backup and the 10-minute auto-revert still apply.
 REM ===========================================================================
 
-set "SEGURIDAD=%USERPROFILE%\Security"
-if not exist "%SEGURIDAD%\Harden.ps1" set "SEGURIDAD=%USERPROFILE%\Security"
+set "SECDIR=%USERPROFILE%\Security"
+if not exist "%SECDIR%\Harden.ps1" set "SECDIR=%USERPROFILE%\Security"
 
-if not exist "%SEGURIDAD%\Harden.ps1" (
+if not exist "%SECDIR%\Harden.ps1" (
     echo.
-    echo   No encuentro la carpeta de seguridad.
+    echo   Cannot find the Security folder.
     echo.
     pause
     exit /b 1
 )
 
 net session >nul 2>&1
-if %errorlevel% equ 0 goto YA_ADMIN
+if %errorlevel% equ 0 goto ALREADY_ADMIN
 
 echo.
 echo   ============================================================
-echo            R E P A R A R   L O   Q U E   F A L T O
+echo           R E P A I R   W H A T   W A S   M I S S E D
 echo   ============================================================
 echo.
-echo   Acepta el aviso de administrador.
+echo   Accept the administrator prompt.
 echo.
 powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
 exit /b 0
 
-:YA_ADMIN
+:ALREADY_ADMIN
 mode con: cols=100 lines=50 >nul 2>&1
 
 echo.
-echo   Se van a cerrar 78 reglas de firewall que quedaron abiertas:
+echo   78 firewall rules that were left open will be closed:
 echo.
-echo     36  reglas de descubrimiento en la red (Wi-Fi Direct, proyeccion,
-echo         deteccion de redes, P2P de Windows Update, MyASUS)
-echo     21  de programas que solo escuchan en tu propio equipo y no
-echo         necesitan aceptar conexiones de fuera
-echo      6  ELIMINADAS del todo: adb.exe (x2), lolminer.exe (x2),
+echo     36  network discovery rules (Wi-Fi Direct, projection,
+echo         network discovery, Windows Update P2P, MyASUS)
+echo     21  for programs that only listen on your own PC and do not
+echo         need to accept outside connections
+echo      6  DELETED entirely: adb.exe (x2), lolminer.exe (x2),
 echo         zephyrd.exe (x2)
-echo     15  de juegos, que se quedan en red privada y salen de la publica
+echo     15  for games, which stay on private networks and leave public ones
 echo.
-echo   Y se endurece SMB, que la vez pasada fallo entero.
+echo   And SMB gets hardened, which failed entirely last time.
 echo.
-echo   Tus juegos siguen funcionando en casa. adb y los mineros no pierden
-echo   nada: esas reglas solo servian para RECIBIR conexiones, no para salir.
+echo   Your games keep working at home. adb and the miners lose nothing:
+echo   those rules were only for RECEIVING connections, not going out.
 echo.
 
-powershell -NoProfile -ExecutionPolicy Bypass -File "%SEGURIDAD%\Harden.ps1" -Apply -Layers ports
+powershell -NoProfile -ExecutionPolicy Bypass -File "%SECDIR%\Harden.ps1" -Apply -Layers ports
 
 echo.
 echo   ------------------------------------------------------------------
-echo    Comprobando como quedo...
+echo    Checking the result...
 echo   ------------------------------------------------------------------
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$e=@(Get-NetFirewallRule -Direction Inbound -Enabled True -Action Allow); $p=@($e ^| Where-Object { $_.Profile -match 'Public' -or $_.Profile -eq 'Any' }); Write-Host ''; Write-Host ('   Reglas de entrada permitidas : ' + $e.Count) -ForegroundColor Cyan; Write-Host ('   De esas, en perfil publico    : ' + $p.Count) -ForegroundColor Cyan; $mal=@($e ^| Where-Object { $_.DisplayName -match 'adb\.exe^|lolminer^|zephyrd' }); if ($mal.Count -eq 0) { Write-Host '   adb.exe y mineros             : ELIMINADOS' -ForegroundColor Green } else { Write-Host ('   SIGUEN ABIERTAS: ' + $mal.Count) -ForegroundColor Red }"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$e=@(Get-NetFirewallRule -Direction Inbound -Enabled True -Action Allow); $p=@($e ^| Where-Object { $_.Profile -match 'Public' -or $_.Profile -eq 'Any' }); Write-Host ''; Write-Host ('   Allowed inbound rules        : ' + $e.Count) -ForegroundColor Cyan; Write-Host ('   Of those, on public profile   : ' + $p.Count) -ForegroundColor Cyan; $bad=@($e ^| Where-Object { $_.DisplayName -match 'adb\.exe^|lolminer^|zephyrd' }); if ($bad.Count -eq 0) { Write-Host '   adb.exe and miners            : DELETED' -ForegroundColor Green } else { Write-Host ('   STILL OPEN: ' + $bad.Count) -ForegroundColor Red }"
 
 echo.
-echo   Recuerda REINICIAR: el puerto 445 seguira escuchando hasta que lo
-echo   hagas, porque el driver de SMB sigue cargado en memoria aunque el
-echo   servicio ya este apagado.
+echo   Remember to RESTART: port 445 keeps listening until you do, because
+echo   the SMB driver stays loaded in memory even though the service is
+echo   already stopped.
 echo.
 pause
 endlocal

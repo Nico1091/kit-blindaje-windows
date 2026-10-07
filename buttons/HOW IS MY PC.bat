@@ -1,37 +1,37 @@
 @echo off
 setlocal EnableExtensions
-title Sentinel - Como esta mi PC
+title Sentinel - How is my PC
 
 REM ===========================================================================
-REM  Informe de seguridad. SOLO LECTURA: esto no cambia nada, nunca.
-REM  Puedes ejecutarlo cuando quieras, antes o despues de blindar.
+REM  Security report. READ ONLY: this never changes anything.
+REM  Run it whenever you like, before or after hardening.
 REM ===========================================================================
 
-set "SEGURIDAD=%USERPROFILE%\Security"
-if not exist "%SEGURIDAD%\Audit.ps1" set "SEGURIDAD=%USERPROFILE%\Security"
+set "SECDIR=%USERPROFILE%\Security"
+if not exist "%SECDIR%\Audit.ps1" set "SECDIR=%USERPROFILE%\Security"
 
-if not exist "%SEGURIDAD%\Audit.ps1" (
+if not exist "%SECDIR%\Audit.ps1" (
     echo.
-    echo   No encuentro la carpeta de seguridad.
+    echo   Cannot find the Security folder.
     echo.
     pause
     exit /b 1
 )
 
 net session >nul 2>&1
-if %errorlevel% equ 0 goto YA_ADMIN
+if %errorlevel% equ 0 goto ALREADY_ADMIN
 
 echo.
-echo   Acepta el aviso de administrador para ver el informe completo.
-echo   (Sin el se ve casi todo, pero faltan las exclusiones de Defender.)
+echo   Accept the administrator prompt to see the full report.
+echo   (Without it you see almost everything, except Defender exclusions.)
 echo.
 powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
 exit /b 0
 
-:YA_ADMIN
+:ALREADY_ADMIN
 mode con: cols=110 lines=50 >nul 2>&1
 
-powershell -NoProfile -ExecutionPolicy Bypass -File "%SEGURIDAD%\Audit.ps1"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%SECDIR%\Audit.ps1"
 
 echo.
 pause

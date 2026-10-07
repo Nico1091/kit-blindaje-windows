@@ -1,61 +1,61 @@
 @echo off
 setlocal EnableExtensions
-title Sentinel - Blindar mi PC
+title Sentinel - Harden my PC
 
 REM ===========================================================================
-REM  Doble clic aqui y ya. Este archivo:
-REM    1. Pide permisos de administrador (Windows te preguntara: acepta).
-REM    2. Lanza el blindaje completo en el orden correcto.
+REM  Just double-click it. This file:
+REM    1. Asks for administrator rights (Windows will prompt you: accept).
+REM    2. Runs the full hardening in the right order.
 REM
-REM  No cambia nada sin preguntarte, y si te quedaras sin Internet lo devuelve
-REM  todo solo a los 10 minutos.
+REM  It changes nothing without asking you, and if you lose Internet it puts
+REM  everything back by itself after 10 minutes.
 REM ===========================================================================
 
-REM --- Localizar la carpeta Security ---------------------------------------
-set "SEGURIDAD=%USERPROFILE%\Security"
-if not exist "%SEGURIDAD%\Run-All.ps1" set "SEGURIDAD=%USERPROFILE%\Security"
+REM --- Locate the Security folder -------------------------------------------
+set "SECDIR=%USERPROFILE%\Security"
+if not exist "%SECDIR%\Run-All.ps1" set "SECDIR=%USERPROFILE%\Security"
 
-if not exist "%SEGURIDAD%\Run-All.ps1" (
+if not exist "%SECDIR%\Run-All.ps1" (
     echo.
-    echo   No encuentro la carpeta de seguridad.
-    echo   Buscada en: %USERPROFILE%\Security
+    echo   Cannot find the Security folder.
+    echo   Looked in: %USERPROFILE%\Security
     echo.
-    echo   Si la moviste, vuelve a ponerla ahi.
+    echo   If you moved it, put it back there.
     echo.
     pause
     exit /b 1
 )
 
-REM --- Comprobar si ya somos administrador ----------------------------------
+REM --- Check whether we are already administrator -----------------------------
 net session >nul 2>&1
-if %errorlevel% equ 0 goto YA_ADMIN
+if %errorlevel% equ 0 goto ALREADY_ADMIN
 
 echo.
 echo   ============================================================
-echo                    C E N T I N E L A
+echo                    S E N T I N E L
 echo   ============================================================
 echo.
-echo   Windows va a pedirte permiso de administrador.
-echo   Es normal: sin eso no se puede tocar el firewall.
+echo   Windows will ask for administrator permission.
+echo   That is normal: the firewall cannot be changed without it.
 echo.
-echo   Pulsa SI en el aviso que aparece.
+echo   Click YES on the prompt that appears.
 echo.
 powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
 exit /b 0
 
-:YA_ADMIN
+:ALREADY_ADMIN
 mode con: cols=100 lines=50 >nul 2>&1
 
-powershell -NoProfile -ExecutionPolicy Bypass -File "%SEGURIDAD%\Run-All.ps1"
-set CODIGO=%errorlevel%
+powershell -NoProfile -ExecutionPolicy Bypass -File "%SECDIR%\Run-All.ps1"
+set EXITCODE=%errorlevel%
 
-if %CODIGO% neq 0 (
+if %EXITCODE% neq 0 (
     echo.
-    echo   El proceso termino con codigo %CODIGO%.
-    echo   Revisa la bitacora en: %SEGURIDAD%\Logs
+    echo   The process ended with code %EXITCODE%.
+    echo   Check the log in: %SECDIR%\Logs
     echo.
     pause
 )
 
 endlocal
-exit /b %CODIGO%
+exit /b %EXITCODE%
