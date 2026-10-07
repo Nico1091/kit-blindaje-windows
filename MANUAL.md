@@ -12,6 +12,7 @@ The kit contains no credentials, keys, device addresses or data about anyone. Pa
 kit-blindaje-windows\
 ├── INSTALL-KIT.bat          copies everything into place (the only install step)
 ├── MANUAL.md                this document
+├── TERMS.md · LICENSE · SECURITY.md   terms of use, license, how to report a vulnerability
 ├── PROTECTION-GUIDE.md      technical detail of every measure
 ├── Run-All.ps1              orchestrates the full hardening
 ├── Install.ps1              registers the system launchers
@@ -104,7 +105,9 @@ It ships with direct entry to Tor. To use WebTunnel bridges, paste them into `~/
 - **A random MAC** makes networks with MAC filtering or a captive portal treat the PC as new and ask you to sign in again.
 - **The local DNS** depends on Unbound running. If it stops, pages will not open until it is restarted or removed with **REMOVE MOVIE-GRADE PROTECTION**.
 - **Do not use it on work, school or third-party managed computers** without written permission from the administrator.
-- **No warranty.** The kit is provided as is. Whoever applies it accepts the consequences of the changes on their PC.
+- **Back up your personal files.** The kit's backups cover the settings it changes, not your documents.
+- **Your antivirus may flag the scripts.** Tools that change the firewall and registry often trigger Defender or SmartScreen warnings. Download only from this repository, read the scripts, and never disable your antivirus to run them.
+- **No warranty and no liability.** The kit is provided as is. The author is not liable for any damage, data loss or account restriction. Whoever applies it accepts the consequences of the changes on their PC. The binding terms are in `TERMS.md` and the license in `LICENSE` (PolyForm Noncommercial 1.0.0).
 
 ## 9. Donations
 
