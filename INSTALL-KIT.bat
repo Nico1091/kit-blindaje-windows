@@ -1,47 +1,47 @@
 @echo off
 setlocal EnableExtensions
-title Kit de blindaje - Instalar
+title Hardening kit - Install
 
 REM ===========================================================================
-REM  Copia el kit a %USERPROFILE%\Security y los buttons al Escritorio.
-REM  No cambia ninguna configuracion de Windows y no pide administrador.
-REM  No borra nada: si la carpeta ya existe, solo actualiza los archivos del kit.
+REM  Copies the kit to %USERPROFILE%\Security and the buttons to the Desktop.
+REM  Changes no Windows settings and does not ask for administrator.
+REM  Deletes nothing: if the folder exists, it only updates the kit files.
 REM ===========================================================================
 
-set "ORIGEN=%~dp0"
-set "DESTINO=%USERPROFILE%\Security"
-for /f "usebackq tokens=*" %%D in (`powershell -NoProfile -Command "[Environment]::GetFolderPath('Desktop')"`) do set "ESCRITORIO=%%D"
-if not defined ESCRITORIO set "ESCRITORIO=%USERPROFILE%\Desktop"
-set "BOTONES=%ESCRITORIO%\Kit de blindaje"
+set "SOURCE=%~dp0"
+set "TARGET=%USERPROFILE%\Security"
+for /f "usebackq tokens=*" %%D in (`powershell -NoProfile -Command "[Environment]::GetFolderPath('Desktop')"`) do set "DESKTOP=%%D"
+if not defined DESKTOP set "DESKTOP=%USERPROFILE%\Desktop"
+set "BUTTONS=%DESKTOP%\Hardening kit"
 
 echo.
-echo   Se va a copiar el kit a:     %DESTINO%
-echo   y los buttons a:             %BOTONES%
+echo   The kit will be copied to:   %TARGET%
+echo   and the buttons to:          %BUTTONS%
 echo.
-echo   No se cambia ninguna configuracion. Para seguir pulse una tecla,
-echo   o cierre esta ventana para cancelar.
+echo   No settings are changed. Press any key to continue,
+echo   or close this window to cancel.
 pause >nul
 
-robocopy "%ORIGEN%." "%DESTINO%" /E /XD .git buttons __pycache__ /XF INSTALL-KIT.bat .gitignore /NFL /NDL /NJH /NJS /NP
+robocopy "%SOURCE%." "%TARGET%" /E /XD .git buttons __pycache__ /XF INSTALL-KIT.bat .gitignore /NFL /NDL /NJH /NJS /NP
 if %ERRORLEVEL% GEQ 8 (
     echo.
-    echo   Fallo la copia del kit. No se cambio nada mas.
+    echo   Copying the kit failed. Nothing else was changed.
     pause
     exit /b 1
 )
 
-robocopy "%ORIGEN%botones" "%BOTONES%" *.bat /NFL /NDL /NJH /NJS /NP
+robocopy "%SOURCE%buttons" "%BUTTONS%" *.bat /NFL /NDL /NJH /NJS /NP
 if %ERRORLEVEL% GEQ 8 (
     echo.
-    echo   El kit se copio, pero fallo la copia de los buttons.
+    echo   The kit was copied, but copying the buttons failed.
     pause
     exit /b 1
 )
 
 echo.
-echo   Listo.
-echo   1. Abra la carpeta "Kit de blindaje" del Escritorio.
-echo   2. Ejecute primero WHAT WOULD IT BLOCK: no cambia nada.
-echo   3. Lea MANUAL.md antes de aplicar cualquier cambio.
+echo   Done.
+echo   1. Open the "Hardening kit" folder on the Desktop.
+echo   2. Run HOW IS MY PC first: it changes nothing.
+echo   3. Read MANUAL.md before applying any change.
 echo.
 pause

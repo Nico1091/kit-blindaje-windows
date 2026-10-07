@@ -1,11 +1,11 @@
-"""Comprobador de proteccion: ligero, en prioridad baja y sin enviar datos propios a nadie.
+"""Protection checker: lightweight, low priority, and sends none of your data anywhere.
 
-1. Visita paginas y confirma que cada una cifra con TLS 1.3.
-2. Comprueba que los anuncios y rastreadores esten bloqueados en el DNS local.
-3. Revisa que conexiones salen ahora mismo y si alguna va a telemetria conocida.
-4. Revisa que la telemetria de Windows, Office y del Browser este al minimo.
-5. Si Tor esta abierto, confirma que sale por la red Tor.
-El informe queda en Security\\Reports.
+1. Visits pages and confirms each one encrypts with TLS 1.3.
+2. Checks that ads and trackers are blocked by the local DNS.
+3. Reviews which connections are going out right now and whether any go to known telemetry.
+4. Checks that Windows, Office and Browser telemetry is at the minimum.
+5. If Tor is running, confirms it exits through the Tor network.
+The report is saved in Security\\Reports.
 """
 import datetime
 import socket
@@ -16,9 +16,9 @@ from pathlib import Path
 
 import psutil
 
-psutil.Process().nice(psutil.IDLE_PRIORITY_CLASS)  # no compite con lo que el use
+psutil.Process().nice(psutil.IDLE_PRIORITY_CLASS)  # does not compete with what the user is doing
 
-PAGINAS = ["www.mojeek.com", "es.wikipedia.org", "www.eltiempo.com", "github.com", "duckduckgo.com"]
+PAGINAS = ["www.mojeek.com", "en.wikipedia.org", "www.eltiempo.com", "github.com", "duckduckgo.com"]
 ANUNCIOS = ["doubleclick.net", "googlesyndication.com", "adservice.google.com", "ads.yahoo.com", "scorecardresearch.com"]
 TELEMETRIA = ("vortex", "telemetry", "watson", "settings-win", "self.events", "browser.events", "diagtrack",
               "scorecardresearch", "doubleclick", "app-measurement", "google-analytics")
@@ -38,7 +38,7 @@ def visitar(host):
             t.recv(64)
             return t.version()
     except OSError as e:
-        return f"sin respuesta ({e.__class__.__name__})"
+        return f"no answer ({e.__class__.__name__})"
 
 
 def resuelve(dominio):
@@ -56,16 +56,16 @@ def reg(ruta, nombre, raiz=winreg.HKEY_LOCAL_MACHINE):
         return None
 
 
-informe.append("1. Visitas a paginas (cifrado)")
+informe.append("1. Page visits (encryption)")
 for p in PAGINAS:
     v = visitar(p)
     linea(v == "TLSv1.3", f"{p}: {v}")
 
-informe.append("\n2. Bloqueo de anuncios y rastreadores")
+informe.append("\n2. Ad and tracker blocking")
 for d in ANUNCIOS:
-    linea(not resuelve(d), f"{d}: {'resuelve (NO bloqueado)' if resuelve(d) else 'bloqueado'}")
+    linea(not resuelve(d), f"{d}: {'resolves (NOT blocked)' if resuelve(d) else 'blocked'}")
 
-informe.append("\n3. Conexiones que salen ahora")
+informe.append("\n3. Outgoing connections right now")
 vistos = {}
 for c in psutil.net_connections("inet"):
     if c.status != "ESTABLISHED" or not c.raddr:
@@ -90,67 +90,67 @@ for nombre, ips in sorted(vistos.items()):
     sospechosas += malo
     linea(not malo, f"{nombre}: {', '.join(destinos)}")
 if not vistos:
-    linea(True, "ninguna conexion hacia fuera")
+    linea(True, "no outgoing connections")
 
-informe.append("\n4. Telemetria al minimo")
+informe.append("\n4. Telemetry at the minimum")
 dc = r"SOFTWARE\Policies\Microsoft\Windows\DataCollection"
-linea(reg(dc, "AllowTelemetry") == 0, f"Windows, nivel de diagnostico (AllowTelemetry): {reg(dc, 'AllowTelemetry')} (0 = el minimo)")
-linea(reg(dc, "AllowDeviceNameInTelemetry") == 0, "Windows no envia el nombre del equipo")
+linea(reg(dc, "AllowTelemetry") == 0, f"Windows diagnostic level (AllowTelemetry): {reg(dc, 'AllowTelemetry')} (0 = minimum)")
+linea(reg(dc, "AllowDeviceNameInTelemetry") == 0, "Windows does not send the device name")
 linea(reg(r"Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo", "Enabled", winreg.HKEY_CURRENT_USER) == 0,
-      "Id de publicidad apagado")
+      "Advertising ID off")
 linea(reg(r"Software\Microsoft\Windows\CurrentVersion\Search", "BingSearchEnabled", winreg.HKEY_CURRENT_USER) == 0,
-      "El menu Inicio no envia lo que escribe a Bing")
+      "The Start menu does not send what you type to Bing")
 linea(reg(r"Software\Policies\Microsoft\office\common\clienttelemetry", "sendtelemetry", winreg.HKEY_CURRENT_USER) == 3,
-      "Office: diagnostico en 'ninguno'")
+      "Office: diagnostics set to 'none'")
 linea(reg(r"Software\Policies\Microsoft\office\16.0\common\privacy", "usercontentdisabled", winreg.HKEY_CURRENT_USER) == 2,
-      "Office no sube el contenido de los documentos")
+      "Office does not upload document content")
 try:
     diag = psutil.win_service_get("DiagTrack").as_dict()
-    informe.append(f"[--] Servicio de diagnostico de Windows: {diag['status']} (se deja: apagarlo arriesga el bloqueo de Windows)")
+    informe.append(f"[--] Windows diagnostic service: {diag['status']} (left on: disabling it risks breaking Windows)")
 except psutil.Error:
-    linea(True, "Servicio de diagnostico de Windows: no existe")
+    linea(True, "Windows diagnostic service: not present")
 cfg = OVERRIDES.read_text(encoding="utf-8") if OVERRIDES.exists() else ""
 for pref in ("toolkit.telemetry.enabled\", false", "datareporting.healthreport.uploadEnabled\", false",
              "security.tls.version.min\", 3", "devtools.debugger.remote-enabled\", false"):
-    linea(f'lockPref("{pref})' in cfg, f"Browser, candado {pref.split(chr(34))[0]}")
-# 04/10/2026: TLS 1.2 permitido con saludo identico al de Firefox; lo debil se corta despues (TLS vigilado)
-linea("--- TLS vigilado" in cfg, "Browser: corta conexiones con cifrado debil (TLS vigilado)")
-linea("--- Avisos ocultos" in cfg, "Browser: oculta avisos de terminos y reglas del chat sin aceptarlos")
+    linea(f'lockPref("{pref})' in cfg, f"Browser, lock {pref.split(chr(34))[0]}")
+# 2026-10-04: TLS 1.2 allowed with a handshake identical to Firefox's; weak ciphers are cut afterwards (watched TLS)
+linea("--- TLS vigilado" in cfg, "Browser: cuts connections with weak encryption (watched TLS)")
+linea("--- Avisos ocultos" in cfg, "Browser: hides terms and chat-rules notices without accepting them")
 
-informe.append("\n5. Tor y salidas del Browser")
+informe.append("\n5. Tor and Browser exits")
 def escucha(puerto):
     return any(c.laddr.port == puerto and c.status == "LISTEN" for c in psutil.net_connections("inet"))
-for puerto, nombre in ((9050, "Tor normal"), (9055, "Tor con salida elegida")):
+for puerto, nombre in ((9050, "Regular Tor"), (9055, "Tor with chosen exit")):
     if escucha(puerto):
         r = subprocess.run(["curl.exe", "-s", "--max-time", "40", "--socks5-hostname",
                             f"comprobador{puerto}:x@127.0.0.1:{puerto}", "https://check.torproject.org/api/ip"],
                            capture_output=True, text=True)
-        linea('"IsTor":true' in r.stdout, f"{nombre}: {r.stdout.strip() or 'aun conectando'}")
+        linea('"IsTor":true' in r.stdout, f"{nombre}: {r.stdout.strip() or 'still connecting'}")
     else:
-        linea(False, f"{nombre}: el puerto {puerto} no escucha (lo enciende el vigilante en menos de 2 minutos)")
-linea(escucha(9060), "Puerta directa protegida (solo los sitios de Browser\\direct.txt) en 127.0.0.1:9060")
+        linea(False, f"{nombre}: port {puerto} is not listening (the watchdog starts it within 2 minutes)")
+linea(escucha(9060), "Protected direct gate (only the sites in Browser\\direct.txt) on 127.0.0.1:9060")
 if escucha(9070):
     r = subprocess.run(["curl.exe", "-s", "--max-time", "40", "--socks5-hostname",
                         "comprobador-carrera:smiley@127.0.0.1:9070", "https://check.torproject.org/api/ip"],
                        capture_output=True, text=True)
-    linea('"IsTor":true' in r.stdout, f"Carrera de circuitos (9070) sale por Tor: {r.stdout.strip() or 'aun conectando'}")
+    linea('"IsTor":true' in r.stdout, f"Circuit race (9070) exits through Tor: {r.stdout.strip() or 'still connecting'}")
 else:
-    linea(False, "Carrera de circuitos (9070) no escucha: el navegador usa Tor directo (mas lento, igual de oculto)")
+    linea(False, "Circuit race (9070) is not listening: the browser uses Tor directly (slower, just as hidden)")
 try:
     import json as _json
     _v = _json.loads((Path.home() / "Security" / "Browser" / "speed.json").read_text(encoding="utf-8"))
     _a = _v.get("ultimo_afinado") or {}
     if _a:
         _c = _a.get("con_la_elegida", {})
-        informe.append(f"[--] Ultimo afinado ({_a.get('fecha')}): {'CUMPLE' if _a.get('cumplido') else 'no cumple'} el objetivo; "
-                       f"respuesta mediana {_c.get('mediana_s')} s, p90 {_c.get('p90_s')} s, lentas {_c.get('lentas_pct')} %")
+        informe.append(f"[--] Last tuning ({_a.get('fecha')}): target {'MET' if _a.get('cumplido') else 'not met'}; "
+                       f"median response {_c.get('mediana_s')} s, p90 {_c.get('p90_s')} s, slow {_c.get('lentas_pct')} %")
 except (OSError, ValueError):
     pass
 
 malos = sum(l.startswith("[!!]") for l in informe)
-informe.append(f"\nResultado: {'TODO EN ORDEN' if malos == 0 else f'{malos} punto(s) a revisar'}")
+informe.append(f"\nResult: {'ALL GOOD' if malos == 0 else f'{malos} item(s) to review'}")
 texto = "\n".join(informe)
 print(texto)
 d = Path.home() / "Security" / "Reports"
 d.mkdir(parents=True, exist_ok=True)
-(d / f"comprobador-{datetime.datetime.now():%Y%m%d-%H%M}.txt").write_text(texto, encoding="utf-8")
+(d / f"checker-{datetime.datetime.now():%Y%m%d-%H%M}.txt").write_text(texto, encoding="utf-8")
