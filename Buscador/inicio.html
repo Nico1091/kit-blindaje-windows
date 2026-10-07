@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Buscador</title>
+<link rel="icon" href="buscador.png">
+<style>
+  :root {
+    --fondo-1: #5c78ff;
+    --fondo-2: #9650e6;
+    --cara-1: #ffe246;
+    --cara-2: #ffaa14;
+    --tinta: #4a280a;
+    --caja: rgba(255,255,255,.96);
+    --texto: #2a2140;
+    --sombra: rgba(30,12,80,.35);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --fondo-1: #1c2150; --fondo-2: #3a1f66; --caja: rgba(30,26,52,.95); --texto: #f1ecff; --sombra: rgba(0,0,0,.5); }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    display: grid; place-items: center;
+    background: linear-gradient(160deg, var(--fondo-1), var(--fondo-2));
+    font-family: "Segoe UI", system-ui, sans-serif;
+    color: var(--texto); overflow: hidden;
+  }
+  main { width: min(640px, calc(100% - 32px)); text-align: center; }
+
+  .cara {
+    width: 180px; height: 180px; margin: 0 auto 28px; position: relative;
+    border-radius: 50%;
+    background: radial-gradient(circle at 38% 30%, #fff6b0 0 8%, transparent 30%),
+                linear-gradient(180deg, var(--cara-1), var(--cara-2));
+    box-shadow: 0 22px 40px var(--sombra), inset 0 -10px 18px rgba(200,110,0,.35);
+    animation: flotar 3.2s ease-in-out infinite;
+  }
+  .ojo {
+    position: absolute; top: 58px; width: 22px; height: 32px; border-radius: 50%;
+    background: var(--tinta); animation: parpadeo 4.5s infinite; transform-origin: center;
+  }
+  .ojo::after { content: ""; position: absolute; top: 5px; left: 5px; width: 7px; height: 7px; border-radius: 50%; background: #fff; }
+  .ojo.izq { left: 50px; } .ojo.der { right: 50px; }
+  .mejilla { position: absolute; top: 104px; width: 30px; height: 16px; border-radius: 50%; background: rgba(255,110,90,.45); filter: blur(3px); }
+  .mejilla.izq { left: 26px; } .mejilla.der { right: 26px; }
+  .boca {
+    position: absolute; left: 50%; top: 96px; width: 86px; height: 44px;
+    transform: translateX(-50%);
+    border: 10px solid var(--tinta); border-top: 0; border-radius: 0 0 60px 60px;
+    transition: height .25s ease, width .25s ease;
+  }
+  body.feliz .boca { width: 100px; height: 54px; }
+  body.feliz .cara { animation: saltar .5s ease-in-out infinite alternate; }
+
+  @keyframes flotar { 0%,100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-14px) rotate(2deg); } }
+  @keyframes saltar { from { transform: translateY(0) scale(1); } to { transform: translateY(-10px) scale(1.04); } }
+  @keyframes parpadeo { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.1); } }
+
+  h1 { font-size: 28px; font-weight: 700; margin: 0 0 18px; color: #fff; letter-spacing: .5px; text-shadow: 0 2px 10px var(--sombra); }
+  form { display: flex; gap: 8px; background: var(--caja); padding: 8px; border-radius: 999px; box-shadow: 0 14px 36px var(--sombra); }
+  input {
+    flex: 1; min-width: 0; border: 0; outline: 0; background: transparent;
+    font: inherit; font-size: 18px; padding: 10px 18px; color: var(--texto);
+  }
+  button {
+    border: 0; border-radius: 999px; padding: 0 22px; font: inherit; font-weight: 600; font-size: 16px;
+    background: linear-gradient(180deg, var(--cara-1), var(--cara-2)); color: var(--tinta); cursor: pointer;
+  }
+  input:focus, input:focus-visible { outline: none; }
+  form:focus-within { box-shadow: 0 0 0 3px rgba(255,226,70,.8), 0 14px 36px var(--sombra); }
+  button:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+  p { margin: 16px 0 0; color: rgba(255,255,255,.85); font-size: 14px; }
+  .accesos { display: flex; flex-wrap: wrap; justify-content: center; gap: 18px; margin: 26px 0 4px; padding: 0; list-style: none; }
+  .accesos a {
+    display: flex; flex-direction: column; align-items: center; gap: 8px; width: 84px;
+    color: #fff; text-decoration: none; font-size: 13px; font-weight: 600;
+    transition: transform .2s ease;
+  }
+  .accesos img { width: 64px; height: 64px; border-radius: 16px; box-shadow: 0 10px 22px var(--sombra); }
+  .accesos a:hover, .accesos a:focus-visible { transform: translateY(-4px) scale(1.05); outline: none; }
+  .accesos a:focus-visible img { box-shadow: 0 0 0 3px #fff, 0 10px 22px var(--sombra); }
+  @media (prefers-reduced-motion: reduce) { .cara, .ojo { animation: none !important; } .accesos a { transition: none; } }
+  #motor { border: 0; background: transparent; font: inherit; color: inherit; padding: 0 6px; border-radius: 999px; cursor: pointer; }
+  .caritas { display: flex; gap: 18px; justify-content: center; font-size: 2rem; }
+  .caritas span { animation: saltar 1.2s ease-in-out infinite alternate; }
+  .caritas span:nth-child(2) { animation-delay: .2s; } .caritas span:nth-child(3) { animation-delay: .4s; }
+  .caritas span:nth-child(4) { animation-delay: .6s; } .caritas span:nth-child(5) { animation-delay: .8s; }
+</style>
+</head>
+<body>
+<main>
+  <div class="cara" aria-hidden="true">
+    <span class="ojo izq"></span><span class="ojo der"></span>
+    <span class="mejilla izq"></span><span class="mejilla der"></span>
+    <span class="boca"></span>
+  </div>
+  <h1>Buscador</h1>
+  <form action="https://html.duckduckgo.com/html/" method="get" role="search">
+    <select id="motor" aria-label="Motor">
+      <option value="https://html.duckduckgo.com/html/">DuckDuckGo</option>
+      <option value="https://search.brave.com/search">Brave</option>
+      <option value="https://www.mojeek.com/search">Mojeek</option>
+      <option value="tor">Tor (secreto)</option>
+    </select>
+    <input name="q" id="q" type="search" placeholder="Busca lo que quieras..." autocomplete="off" autofocus aria-label="Buscar">
+    <button type="submit">Buscar</button>
+  </form>
+  <ul class="accesos">
+    <li><a href="https://www.mojeek.com/">Mojeek</a></li>
+    <li><a href="https://es.wikipedia.org/">Wikipedia</a></li>
+    <li><a href="https://github.com/">GitHub</a></li>
+  </ul>
+  <p class="caritas" aria-hidden="true"><span>😊</span><span>😄</span><span>😁</span><span>🙂</span><span>😆</span></p>
+</main>
+<script>
+  const q = document.getElementById('q');
+  const motor = document.getElementById('motor');
+  const form = document.querySelector('form');
+  try { const g = localStorage.getItem('motor'); if (g && g.indexOf('mojeek') < 0 && g !== 'https://duckduckgo.com/') motor.value = g; } catch (e) {}
+  const ponerMotor = () => {
+    if (motor.value !== 'tor') form.action = motor.value;
+    try { localStorage.setItem('motor', motor.value === 'tor' ? 'https://html.duckduckgo.com/html/' : motor.value); } catch (e) {}
+  };
+  motor.addEventListener('change', ponerMotor);
+  ponerMotor();
+  // Tor: la busqueda se abre dentro de la red Tor; al volver, el selector regresa a Mojeek
+  form.addEventListener('submit', (ev) => {
+    if (motor.value !== 'tor') return;
+    ev.preventDefault();
+    location.href = 'carita-tor:' + encodeURIComponent(q.value);
+  });
+  q.addEventListener('input', () => document.body.classList.toggle('feliz', q.value.length > 0));
+</script>
+</body>
+</html>
