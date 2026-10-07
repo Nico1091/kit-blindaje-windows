@@ -1,17 +1,17 @@
 <#
-    Core.ps1 -- funciones comunes del sistema de blindaje.
-    Sin acentos a proposito: la consola de Windows los destroza segun la pagina
-    de codigos activa, y este codigo tiene que correr igual en PowerShell 5.1
-    y en 7.x.
+    Core.ps1 -- shared functions of the hardening system.
+    No accented characters on purpose: the Windows console mangles them depending
+    on the active code page, and this code must run the same on PowerShell 5.1
+    and 7.x.
 
-    Nada de lo que hay aqui cambia el sistema por si solo. Son herramientas.
+    Nothing in here changes the system by itself. These are tools.
 #>
 
-# Nada de StrictMode: este script consulta decenas de propiedades opcionales
-# del sistema y StrictMode convertiria cada ausencia legitima en excepcion.
+# No StrictMode: this script queries dozens of optional system properties
+# and StrictMode would turn every legitimate absence into an exception.
 
 # ---------------------------------------------------------------------------
-# Rutas
+# Paths
 # ---------------------------------------------------------------------------
 
 $script:Raiz      = Split-Path -Parent $PSScriptRoot
@@ -21,7 +21,7 @@ $script:DirBase   = Join-Path $Raiz 'Baseline'
 $script:DirInf    = Join-Path $Raiz 'Reports'
 $script:DirPerf   = Join-Path $Raiz 'Profiles'
 $script:Sello     = Get-Date -Format 'yyyyMMdd-HHmmss'
-$script:Log       = Join-Path $DirLog ("sesion-$Sello.log")
+$script:Log       = Join-Path $DirLog ("session-$Sello.log")
 $script:TareaRev  = 'Sentinel-Emergency-Reverter'
 
 foreach ($d in @($DirResp, $DirLog, $DirBase, $DirInf, $DirPerf)) {
@@ -61,7 +61,7 @@ function Write-Titulo {
 }
 
 # ---------------------------------------------------------------------------
-# Elevacion
+# Elevation
 # ---------------------------------------------------------------------------
 
 function Test-Elevado {
@@ -75,8 +75,8 @@ function Assert-Elevado {
     if (Test-Elevado) { return $true }
 
     Write-Host ''
-    Write-Host '  Este script necesita permisos de administrador.' -ForegroundColor Yellow
-    Write-Host '  Se va a relanzar elevado. Acepta el aviso de Windows.' -ForegroundColor Yellow
+    Write-Host '  This script needs administrator rights.' -ForegroundColor Yellow
+    Write-Host '  It will relaunch elevated. Accept the Windows prompt.' -ForegroundColor Yellow
     Write-Host ''
 
     $exe = if ($PSVersionTable.PSEdition -eq 'Core') { 'pwsh.exe' } else { 'powershell.exe' }
@@ -84,16 +84,16 @@ function Assert-Elevado {
     try {
         Start-Process -FilePath $exe -ArgumentList $lista -Verb RunAs -ErrorAction Stop
     } catch {
-        Write-Host "  No se pudo elevar: $($_.Exception.Message)" -ForegroundColor Red
-        Write-Host '  Abre PowerShell como administrador y vuelve a lanzarlo a mano.' -ForegroundColor Red
+        Write-Host "  Could not elevate: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host '  Open PowerShell as administrator and run it again by hand.' -ForegroundColor Red
     }
     return $false
 }
 
 # ---------------------------------------------------------------------------
-# Registro: escribir y RELEER. La Proteccion contra Manipulaciones de Defender
-# rechaza escrituras en silencio; si no releemos, creemos que se aplico algo
-# que no se aplico.
+# Registry: write and READ BACK. Defender Tamper Protection silently rejects
+# writes; without reading back we would believe something was applied
+# when it was not.
 # ---------------------------------------------------------------------------
 
 function Set-ValorRegistro {
@@ -110,31 +110,31 @@ function Set-ValorRegistro {
     try { $actual = (Get-ItemProperty -Path $Ruta -Name $Nombre -ErrorAction Stop).$Nombre } catch { }
 
     if ($null -ne $actual -and "$actual" -eq "$Valor") {
-        Write-Bitacora "ya estaba: $Nombre = $Valor" 'INFO'
+        Write-Bitacora "already set: $Nombre = $Valor" 'INFO'
         return $true
     }
 
-    $desc = "$Ruta :: $Nombre = $Valor (antes: $(if($null -eq $actual){'<sin definir>'}else{$actual}))"
+    $desc = "$Ruta :: $Nombre = $Valor (before: $(if($null -eq $actual){'<not set>'}else{$actual}))"
     if ($Motivo) { $desc += "  -- $Motivo" }
 
-    if ($Simular) { Write-Bitacora "SIMULACRO -> $desc" 'DRYRUN'; return $true }
+    if ($Simular) { Write-Bitacora "DRY RUN -> $desc" 'DRYRUN'; return $true }
 
     try {
         if (-not (Test-Path $Ruta)) { New-Item -Path $Ruta -Force -ErrorAction Stop | Out-Null }
         New-ItemProperty -Path $Ruta -Name $Nombre -Value $Valor -PropertyType $Tipo -Force -ErrorAction Stop | Out-Null
     } catch {
-        Write-Bitacora "FALLO al escribir $Nombre : $($_.Exception.Message)" 'ERROR'
+        Write-Bitacora "FAILED to write $Nombre : $($_.Exception.Message)" 'ERROR'
         return $false
     }
 
-    # Releer. Esto es lo que separa "creo que lo hice" de "lo hice".
+    # Read back. This is what separates "I think I did it" from "I did it".
     $comprobado = $null
     try { $comprobado = (Get-ItemProperty -Path $Ruta -Name $Nombre -ErrorAction Stop).$Nombre } catch { }
     if ("$comprobado" -eq "$Valor") {
-        Write-Bitacora "aplicado: $desc" 'CHANGE'
+        Write-Bitacora "applied: $desc" 'CHANGE'
         return $true
     }
-    Write-Bitacora "RECHAZADO en silencio (probable Proteccion contra Manipulaciones): $Nombre" 'WARN'
+    Write-Bitacora "SILENTLY REJECTED (probably Tamper Protection): $Nombre" 'WARN'
     return $false
 }
 
@@ -147,50 +147,49 @@ function Set-EstadoServicio {
         [switch]$Simular
     )
 
-    # Guardia dura: hay servicios que jamas se tocan.
+    # Hard guard: some services are never touched.
     $intocables = @('Dhcp','Dnscache','nsi','NlaSvc','netprofm','WlanSvc','Wcmsvc',
                     'RpcSs','DcomLaunch','RpcEptMapper','BFE','mpssvc','WinDefend',
                     'WdNisSvc','SecurityHealthService','wuauserv','CryptSvc','LSM')
     if ($intocables -contains $Nombre) {
-        Write-Bitacora "BLOQUEADO POR LISTA NEGRA: no se toca el servicio $Nombre" 'ERROR'
+        Write-Bitacora "BLOCKED BY DENYLIST: service $Nombre is not touched" 'ERROR'
         return $false
     }
 
     $svc = $null
     try { $svc = Get-Service -Name $Nombre -ErrorAction Stop } catch {
-        Write-Bitacora "servicio $Nombre no existe en este equipo" 'INFO'
+        Write-Bitacora "service $Nombre does not exist on this computer" 'INFO'
         return $true
     }
 
-    $desc = "servicio $Nombre -> $Arranque$(if($Detener){' y detenido'}) (antes: $($svc.StartType)/$($svc.Status))"
+    $desc = "service $Nombre -> $Arranque$(if($Detener){' and stopped'}) (before: $($svc.StartType)/$($svc.Status))"
     if ($Motivo) { $desc += "  -- $Motivo" }
 
-    if ($Simular) { Write-Bitacora "SIMULACRO -> $desc" 'DRYRUN'; return $true }
+    if ($Simular) { Write-Bitacora "DRY RUN -> $desc" 'DRYRUN'; return $true }
 
     try {
         if ($Detener -and $svc.Status -eq 'Running') {
             Stop-Service -Name $Nombre -Force -ErrorAction Stop
         }
         Set-Service -Name $Nombre -StartupType $Arranque -ErrorAction Stop
-        Write-Bitacora "aplicado: $desc" 'CHANGE'
+        Write-Bitacora "applied: $desc" 'CHANGE'
         return $true
     } catch {
-        Write-Bitacora "FALLO en $Nombre : $($_.Exception.Message)" 'WARN'
+        Write-Bitacora "FAILED on $Nombre : $($_.Exception.Message)" 'WARN'
         return $false
     }
 }
 
 # ---------------------------------------------------------------------------
-# Reglas de firewall: consultarlas BIEN.
+# Firewall rules: query them PROPERLY.
 #
-# "Get-NetFirewallRule -DisplayName X -Direction Inbound" es un error: esos
-# parametros pertenecen a conjuntos distintos y PowerShell no los combina.
-# La primera version del blindaje lo hacia asi dentro de un catch vacio, y el
-# resultado fue que tres barridos enteros devolvieron cero sin avisar de nada.
+# "Get-NetFirewallRule -DisplayName X -Direction Inbound" is a mistake: those
+# parameters belong to different sets and PowerShell does not combine them.
+# The first version of the hardening did that inside an empty catch, and the
+# result was that three whole sweeps returned zero without any warning.
 #
-# Ademas, los nombres de grupo de Windows en espanol llevan tildes
-# ("Deteccion de redes" vs "Detección de redes") y el codigo va en ASCII puro,
-# asi que la comparacion se hace sin tildes y sin distinguir mayusculas.
+# Also, Windows group names in Spanish carry accents and this code is pure
+# ASCII, so the comparison ignores accents and case.
 # ---------------------------------------------------------------------------
 
 function ConvertTo-SinTildes {
@@ -218,7 +217,7 @@ function Get-ReglasEntrada {
     if (-not $script:CacheReglas) {
         try { $script:CacheReglas = @(Get-NetFirewallRule -Direction Inbound -ErrorAction Stop) }
         catch {
-            Write-Bitacora "no se pudieron leer las reglas de firewall: $($_.Exception.Message)" 'ERROR'
+            Write-Bitacora "could not read the firewall rules: $($_.Exception.Message)" 'ERROR'
             return @()
         }
     }
@@ -235,10 +234,11 @@ function Get-ReglasEntrada {
         $r = @($r | Where-Object { $_.DisplayGroup -and (ConvertTo-SinTildes $_.DisplayGroup) -like "*$g*" })
     }
 
-    # GUARDIA DURA. Estas reglas no se tocan jamas, coincida lo que coincida:
-    # ahi viven DHCP, DHCPv6 y el ICMP que hace falta para descubrir la MTU.
-    # Desactivarlas te deja sin IP, y con un patron demasiado amplio seria
-    # facilisimo llevarselas por delante sin darse cuenta.
+    # HARD GUARD. These rules are never touched, whatever matches:
+    # DHCP, DHCPv6 and the ICMP needed for MTU discovery live there.
+    # Disabling them leaves you without an IP, and with a pattern that is too broad
+    # it would be very easy to take them down by accident.
+    # The names are matched in Spanish and English (Windows shows its own language).
     $intocables = @('redes principales','core networking','dhcp','iphttps')
     $r = @($r | Where-Object {
         $dg = ConvertTo-SinTildes $_.DisplayGroup
@@ -252,43 +252,43 @@ function Get-ReglasEntrada {
 }
 
 # ---------------------------------------------------------------------------
-# Backup. Si esto falla, no se toca nada.
+# Backup. If this fails, nothing is touched.
 # ---------------------------------------------------------------------------
 
 function Backup-EstadoSistema {
     param([switch]$Simular)
 
     $carpeta = Join-Path $script:DirResp $script:Sello
-    Write-Titulo "RESPALDO -> $carpeta"
+    Write-Titulo "BACKUP -> $carpeta"
 
     if ($Simular) {
-        Write-Bitacora 'SIMULACRO: se exportaria firewall, registro y estado de servicios' 'DRYRUN'
+        Write-Bitacora 'DRY RUN: firewall, registry and service state would be exported' 'DRYRUN'
         return $carpeta
     }
 
     New-Item -ItemType Directory -Path $carpeta -Force | Out-Null
     $ok = $true
 
-    # 1) Firewall completo. Restaura las reglas EXACTAS.
+    # 1) Full firewall. Restores the EXACT rules.
     $wfw = Join-Path $carpeta 'firewall.wfw'
     $salida = & netsh.exe advfirewall export "$wfw" 2>&1
     if ((Test-Path $wfw) -and ((Get-Item $wfw).Length -gt 0)) {
-        Write-Bitacora "firewall exportado ($([math]::Round((Get-Item $wfw).Length/1KB)) KB)" 'OK'
+        Write-Bitacora "firewall exported ($([math]::Round((Get-Item $wfw).Length/1KB)) KB)" 'OK'
     } else {
-        Write-Bitacora "FALLO exportando el firewall: $salida" 'ERROR'
+        Write-Bitacora "FAILED to export the firewall: $salida" 'ERROR'
         $ok = $false
     }
 
-    # 2) Claves del registro que vamos a tocar.
+    # 2) Registry keys that will be touched.
     $claves = @{
-        'politicas-sistema'   = 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'
+        'system-policies'     = 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'
         'datacollection-pol'  = 'HKLM\SOFTWARE\Policies\Microsoft\Windows\DataCollection'
         'lsa'                 = 'HKLM\SYSTEM\CurrentControlSet\Control\Lsa'
         'ci-config'           = 'HKLM\SYSTEM\CurrentControlSet\Control\CI'
         'dnsclient'           = 'HKLM\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient'
         'netbt'               = 'HKLM\SYSTEM\CurrentControlSet\Services\NetBT\Parameters'
         'tcpip-ifaces'        = 'HKLM\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces'
-        'explorer-usuario'    = 'HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+        'user-explorer'       = 'HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
         'wsh'                 = 'HKLM\SOFTWARE\Microsoft\Windows Script Host\Settings'
         'consentstore'        = 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore'
         'systemrestore'       = 'HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SystemRestore'
@@ -296,11 +296,11 @@ function Backup-EstadoSistema {
     foreach ($k in $claves.Keys) {
         $destino = Join-Path $carpeta "$k.reg"
         & reg.exe export $claves[$k] "$destino" /y > $null 2>&1
-        if (Test-Path $destino) { Write-Bitacora "registro guardado: $k" 'OK' }
-        else { Write-Bitacora "clave inexistente (normal): $k" 'INFO' }
+        if (Test-Path $destino) { Write-Bitacora "registry saved: $k" 'OK' }
+        else { Write-Bitacora "key does not exist (normal): $k" 'INFO' }
     }
 
-    # 3) Estado de servicios y red, en JSON.
+    # 3) Service and network state, as JSON.
     $estado = [ordered]@{
         sello      = $script:Sello
         servicios  = @(Get-Service | Select-Object Name, StartType, Status)
@@ -310,54 +310,54 @@ function Backup-EstadoSistema {
         netbios    = @(Get-CimInstance Win32_NetworkAdapterConfiguration -Filter 'IPEnabled=True' | Select-Object Description, SettingID, TcpipNetbiosOptions)
     }
     try {
-        $estado | ConvertTo-Json -Depth 6 | Set-Content -Path (Join-Path $carpeta 'estado.json') -Encoding UTF8
-        Write-Bitacora 'estado de servicios y red guardado' 'OK'
+        $estado | ConvertTo-Json -Depth 6 | Set-Content -Path (Join-Path $carpeta 'state.json') -Encoding UTF8
+        Write-Bitacora 'service and network state saved' 'OK'
     } catch {
-        Write-Bitacora "FALLO guardando el estado: $($_.Exception.Message)" 'ERROR'
+        Write-Bitacora "FAILED to save the state: $($_.Exception.Message)" 'ERROR'
         $ok = $false
     }
 
-    # 4) Punto de restauracion. Windows limita a uno cada 24h; lo levantamos.
-    #    Enable-ComputerRestore y Checkpoint-Computer NO existen en PowerShell 7,
-    #    asi que hay que pasar por Windows PowerShell 5.1 si o si.
+    # 4) Restore point. Windows limits it to one every 24h; the limit is lifted.
+    #    Enable-ComputerRestore and Checkpoint-Computer do NOT exist in PowerShell 7,
+    #    so this must go through Windows PowerShell 5.1.
     Set-ValorRegistro -Ruta 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SystemRestore' `
-                      -Nombre 'SystemRestorePointCreationFrequency' -Valor 0 -Motivo 'permitir varios puntos al dia' | Out-Null
+                      -Nombre 'SystemRestorePointCreationFrequency' -Valor 0 -Motivo 'allow several points per day' | Out-Null
     $ordenSR = "Enable-ComputerRestore -Drive 'C:\' -ErrorAction Stop; " +
                "Checkpoint-Computer -Description 'Sentinel $script:Sello' -RestorePointType 'MODIFY_SETTINGS' -ErrorAction Stop; " +
-               "'PUNTO-OK'"
+               "'POINT-OK'"
     $resSR = & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command $ordenSR 2>&1
-    if ("$resSR" -match 'PUNTO-OK') {
-        Write-Bitacora 'punto de restauracion creado' 'OK'
+    if ("$resSR" -match 'POINT-OK') {
+        Write-Bitacora 'restore point created' 'OK'
     } else {
-        Write-Bitacora "punto de restauracion no creado: $resSR" 'WARN'
-        Write-Bitacora 'sigue habiendo respaldo de firewall y registro, que es lo que mas importa' 'INFO'
+        Write-Bitacora "restore point not created: $resSR" 'WARN'
+        Write-Bitacora 'the firewall and registry backup still exists, which is what matters most' 'INFO'
     }
 
-    # 5) El script de emergencia, autocontenido. No depende de este fichero
-    #    ni de nada mas: si todo lo demas se rompe, esto sigue funcionando.
-    $emerg = Join-Path $carpeta 'EMERGENCIA-restaurar-red.ps1'
+    # 5) The emergency script, self-contained. It depends neither on this file
+    #    nor on anything else: if everything else breaks, this keeps working.
+    $emerg = Join-Path $carpeta 'EMERGENCY-restore-network.ps1'
     $cuerpo = @"
-# Reversor de emergencia. Doble clic con boton derecho -> Ejecutar con PowerShell (como admin).
-# Devuelve el firewall y los servicios de red al estado del $($script:Sello).
+# Emergency reverter. Right-click -> Run with PowerShell (as admin).
+# Restores the firewall and network services to the state of $($script:Sello).
 #
-# -Auto lo usan la tarea programada y el codigo que lo invoca solo. Sin ese
-# parametro el script espera una tecla al final, y eso colgaria tanto la tarea
-# (que corre como SYSTEM, sin consola) como al propio blindador.
+# -Auto is used by the scheduled task and the code that calls it automatically. Without
+# that parameter the script waits for a key at the end, which would hang both the task
+# (it runs as SYSTEM, without a console) and the hardening script itself.
 param([switch]`$Auto)
 
-Write-Host 'Restaurando firewall...' -ForegroundColor Yellow
+Write-Host 'Restoring firewall...' -ForegroundColor Yellow
 netsh advfirewall reset
 netsh advfirewall import "$wfw"
 netsh advfirewall set allprofiles state on
 netsh advfirewall set allprofiles firewallpolicy blockinbound,allowoutbound
-Write-Host 'Reactivando servicios de red...' -ForegroundColor Yellow
+Write-Host 'Re-enabling network services...' -ForegroundColor Yellow
 foreach (`$s in 'Dhcp','Dnscache','nsi','NlaSvc','netprofm','WlanSvc','Wcmsvc','BFE','mpssvc') {
     try { Set-Service -Name `$s -StartupType Automatic -ErrorAction Stop; Start-Service -Name `$s -ErrorAction SilentlyContinue } catch { }
 }
 ipconfig /flushdns | Out-Null
 Write-Host ''
-Write-Host 'Listo. Comprobando salida a Internet...' -ForegroundColor Cyan
-try { `$null = Resolve-DnsName microsoft.com -ErrorAction Stop; Write-Host '  DNS: OK' -ForegroundColor Green } catch { Write-Host '  DNS: FALLA' -ForegroundColor Red }
+Write-Host 'Done. Checking internet access...' -ForegroundColor Cyan
+try { `$null = Resolve-DnsName microsoft.com -ErrorAction Stop; Write-Host '  DNS: OK' -ForegroundColor Green } catch { Write-Host '  DNS: FAIL' -ForegroundColor Red }
 `$hay = `$false
 foreach (`$u in 'https://1.1.1.1/','https://www.msftconnecttest.com/connecttest.txt') {
     try { `$null = Invoke-WebRequest `$u -UseBasicParsing -TimeoutSec 10; `$hay = `$true; break } catch { }
@@ -367,24 +367,24 @@ if (-not `$hay) {
         try { `$t = New-Object System.Net.Sockets.TcpClient; if (`$t.ConnectAsync(`$h,443).Wait(4000) -and `$t.Connected) { `$hay = `$true }; `$t.Close(); if (`$hay) { break } } catch { }
     }
 }
-if (`$hay) { Write-Host '  HTTPS: OK' -ForegroundColor Green } else { Write-Host '  HTTPS: FALLA' -ForegroundColor Red }
+if (`$hay) { Write-Host '  HTTPS: OK' -ForegroundColor Green } else { Write-Host '  HTTPS: FAIL' -ForegroundColor Red }
 Write-Host ''
-if (-not `$Auto) { Read-Host 'Pulsa Intro para cerrar' }
+if (-not `$Auto) { Read-Host 'Press Enter to close' }
 "@
     Set-Content -Path $emerg -Value $cuerpo -Encoding UTF8
-    Write-Bitacora "reversor de emergencia listo: $emerg" 'OK'
+    Write-Bitacora "emergency reverter ready: $emerg" 'OK'
 
     if (-not $ok) {
-        Write-Bitacora 'EL RESPALDO NO ESTA COMPLETO. Se aborta: sin red no se salta.' 'ERROR'
-        throw 'Backup incompleto'
+        Write-Bitacora 'THE BACKUP IS NOT COMPLETE. Aborting: no jumping without a safety net.' 'ERROR'
+        throw 'Incomplete backup'
     }
 
-    Set-Content -Path (Join-Path $script:DirResp 'ULTIMO.txt') -Value $carpeta -Encoding UTF8
+    Set-Content -Path (Join-Path $script:DirResp 'LATEST.txt') -Value $carpeta -Encoding UTF8
     return $carpeta
 }
 
 # ---------------------------------------------------------------------------
-# Verificacion de conectividad. Se ejecuta despues de CADA capa que toque red.
+# Connectivity check. Runs after EVERY layer that touches the network.
 # ---------------------------------------------------------------------------
 
 function Test-Conectividad {
@@ -392,38 +392,38 @@ function Test-Conectividad {
 
     $r = [ordered]@{}
 
-    # Adaptador arriba con IP
+    # Adapter up with an IP
     try {
         $ip = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction Stop |
               Where-Object { $_.IPAddress -notlike '127.*' -and $_.IPAddress -notlike '169.254.*' -and $_.PrefixOrigin -ne 'WellKnown' }
-        $r['adaptador'] = [bool]$ip
-    } catch { $r['adaptador'] = $false }
+        $r['adapter'] = [bool]$ip
+    } catch { $r['adapter'] = $false }
 
-    # Puerta de enlace. Ping por .NET en vez de Test-Connection: los parametros
-    # de ese cmdlet cambiaron entre PowerShell 5.1 y 7.
+    # Gateway. Ping through .NET instead of Test-Connection: that cmdlet's
+    # parameters changed between PowerShell 5.1 and 7.
     try {
         $gw = (Get-NetRoute -DestinationPrefix '0.0.0.0/0' -ErrorAction Stop |
                Sort-Object RouteMetric | Select-Object -First 1).NextHop
         if ($gw -and $gw -ne '0.0.0.0') {
             $ping = New-Object System.Net.NetworkInformation.Ping
-            $r['pasarela'] = ($ping.Send($gw, 2500).Status -eq 'Success')
-        } else { $r['pasarela'] = $false }
-    } catch { $r['pasarela'] = $false }
+            $r['gateway'] = ($ping.Send($gw, 2500).Status -eq 'Success')
+        } else { $r['gateway'] = $false }
+    } catch { $r['gateway'] = $false }
 
-    # Resolucion de nombres: dos dominios distintos por si uno esta caido
+    # Name resolution: two different domains in case one is down
     $dns = $false
     foreach ($d in 'microsoft.com','cloudflare.com') {
         try { $null = Resolve-DnsName -Name $d -Type A -ErrorAction Stop; $dns = $true; break } catch { }
     }
     $r['dns'] = $dns
 
-    # Salida HTTPS. Tres destinos independientes y, si los tres fallan, una
-    # conexion TCP cruda al 443.
+    # HTTPS access. Three independent targets and, if all three fail, a raw
+    # TCP connection to 443.
     #
-    # El motivo del ultimo recurso: en redes ajenas con inspeccion de TLS,
-    # Invoke-WebRequest falla con error de SSL aunque la salida funcione
-    # perfectamente. Sin esta comprobacion tendriamos un falso negativo, y un
-    # falso negativo aqui hace que el script revierta capas que estaban bien.
+    # Why the last resort: on other people's networks with TLS inspection,
+    # Invoke-WebRequest fails with an SSL error even though access works
+    # perfectly. Without this check we would get a false negative, and a false
+    # negative here makes the script revert layers that were fine.
     $https = $false
     foreach ($u in 'https://1.1.1.1/','https://www.msftconnecttest.com/connecttest.txt','https://dns.google/') {
         try { $null = Invoke-WebRequest -Uri $u -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop; $https = $true; break } catch { }
@@ -438,11 +438,11 @@ function Test-Conectividad {
                 if ($https) { break }
             } catch { }
         }
-        if ($https) { Write-Bitacora '  (HTTPS verificado por TCP crudo: hay salida, pero algo inspecciona el TLS)' 'INFO' }
+        if ($https) { Write-Bitacora '  (HTTPS verified by raw TCP: there is access, but something inspects TLS)' 'INFO' }
     }
     $r['https'] = $https
 
-    # Servicios propios que escuchan en local (nombre = puerto). Agregue los suyos.
+    # Your own services listening locally (name = port). Add yours.
     $suyos = @{}
     foreach ($n in $suyos.Keys) {
         $p = $suyos[$n]
@@ -450,13 +450,13 @@ function Test-Conectividad {
         $r["local-$n"] = $vivo
     }
 
-    $critico = $r['adaptador'] -and $r['dns'] -and $r['https']
+    $critico = $r['adapter'] -and $r['dns'] -and $r['https']
 
     if (-not $Silencioso) {
         foreach ($k in $r.Keys) {
             $v = $r[$k]
-            $etiq = if ($v) { 'OK  ' } else { 'FALLA' }
-            $niv  = if ($v) { 'OK' } elseif ($k -like 'local-*' -or $k -eq 'pasarela') { 'INFO' } else { 'ERROR' }
+            $etiq = if ($v) { 'OK  ' } else { 'FAIL' }
+            $niv  = if ($v) { 'OK' } elseif ($k -like 'local-*' -or $k -eq 'gateway') { 'INFO' } else { 'ERROR' }
             Write-Bitacora ("  {0,-18} {1}" -f $k, $etiq) $niv
         }
     }
@@ -465,13 +465,13 @@ function Test-Conectividad {
 }
 
 # ---------------------------------------------------------------------------
-# Interruptor de hombre muerto.
+# Dead man's switch.
 #
-# Arma una tarea que, dentro de N minutos, restaura la red desde el respaldo.
-# Si el equipo pierde la conexion, si se cuelga, o si cierras la consola presa
-# del panico: a los N minutos vuelve solo al estado anterior.
-# Es el mismo truco que se usa para tocar el cortafuegos de un servidor por SSH
-# sin quedarse fuera.
+# Arms a task that, N minutes later, restores the network from the backup.
+# If the computer loses its connection, hangs, or you close the console in a
+# panic: after N minutes it goes back to the previous state by itself.
+# It is the same trick used to change a server firewall over SSH
+# without locking yourself out.
 # ---------------------------------------------------------------------------
 
 function Enable-Reversor {
@@ -481,15 +481,15 @@ function Enable-Reversor {
         [switch]$Simular
     )
 
-    if ($Simular) { Write-Bitacora "SIMULACRO: se armaria el reversor a $Minutos minutos" 'DRYRUN'; return $true }
+    if ($Simular) { Write-Bitacora "DRY RUN: the reverter would be armed for $Minutos minutes" 'DRYRUN'; return $true }
 
     Disable-Reversor -Silencioso
 
     $cuando = (Get-Date).AddMinutes($Minutos)
     try {
-        # -Auto es obligatorio aqui: la tarea corre como SYSTEM y no tiene
-        # consola, asi que un Read-Host la dejaria colgada hasta agotar el
-        # limite de ejecucion, sin restaurar nada.
+        # -Auto is mandatory here: the task runs as SYSTEM with no
+        # console, so a Read-Host would hang it until the execution
+        # limit runs out, without restoring anything.
         $accion  = New-ScheduledTaskAction -Execute 'powershell.exe' `
                      -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$ScriptEmergencia`" -Auto"
         $disparo = New-ScheduledTaskTrigger -Once -At $cuando
@@ -500,11 +500,11 @@ function Enable-Reversor {
         Register-ScheduledTask -TaskName $script:TareaRev -Action $accion -Trigger $disparo `
             -Principal $ppal -Settings $opts -Force -ErrorAction Stop | Out-Null
 
-        Write-Bitacora "REVERSOR ARMADO: si no confirmas, a las $($cuando.ToString('HH:mm:ss')) la red vuelve sola al estado anterior" 'WARN'
+        Write-Bitacora "REVERTER ARMED: if you do not confirm, at $($cuando.ToString('HH:mm:ss')) the network goes back to the previous state by itself" 'WARN'
         return $true
     } catch {
-        Write-Bitacora "NO SE PUDO ARMAR EL REVERSOR: $($_.Exception.Message)" 'ERROR'
-        Write-Bitacora 'Sin reversor no se aplican capas de red. Se aborta.' 'ERROR'
+        Write-Bitacora "COULD NOT ARM THE REVERTER: $($_.Exception.Message)" 'ERROR'
+        Write-Bitacora 'Without a reverter no network layers are applied. Aborting.' 'ERROR'
         return $false
     }
 }
@@ -514,55 +514,55 @@ function Disable-Reversor {
     try {
         $t = Get-ScheduledTask -TaskName $script:TareaRev -ErrorAction Stop
         Unregister-ScheduledTask -TaskName $script:TareaRev -Confirm:$false -ErrorAction Stop
-        if (-not $Silencioso) { Write-Bitacora 'reversor desarmado: los cambios quedan firmes' 'OK' }
+        if (-not $Silencioso) { Write-Bitacora 'reverter disarmed: the changes are kept' 'OK' }
     } catch {
-        if (-not $Silencioso) { Write-Bitacora 'no habia reversor armado' 'INFO' }
+        if (-not $Silencioso) { Write-Bitacora 'there was no armed reverter' 'INFO' }
     }
 }
 
 function Confirm-Supervivencia {
     <#
-        Aplicada una capa de red, comprueba que seguimos vivos y pide confirmacion
-        humana antes de desarmar el reversor. Si algo falla, revierte en el acto.
+        After a network layer is applied, checks that we are still alive and asks
+        for human confirmation before disarming the reverter. If something fails, it reverts at once.
     #>
     param(
         [Parameter(Mandatory)][string]$ScriptEmergencia,
         [switch]$NoPrompt
     )
 
-    Write-Bitacora 'comprobando que seguimos con Internet...' 'INFO'
+    Write-Bitacora 'checking that we still have internet...' 'INFO'
     Start-Sleep -Seconds 3
     $chequeo = Test-Conectividad
 
     if (-not $chequeo.Sano) {
-        Write-Bitacora 'CONECTIVIDAD PERDIDA. Revirtiendo AHORA sin esperar al reversor.' 'ERROR'
+        Write-Bitacora 'CONNECTIVITY LOST. Reverting NOW without waiting for the reverter.' 'ERROR'
         & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $ScriptEmergencia -Auto
         Disable-Reversor
         return $false
     }
 
-    Write-Bitacora 'conectividad intacta' 'OK'
+    Write-Bitacora 'connectivity intact' 'OK'
 
     if ($NoPrompt) { Disable-Reversor; return $true }
 
     Write-Host ''
-    Write-Host '  Sigue habiendo Internet. Confirma que todo te funciona.' -ForegroundColor Cyan
-    Write-Host '  Si NO respondes, en unos minutos la red vuelve sola al estado anterior.' -ForegroundColor Yellow
-    $resp = Read-Host '  Escribe SI para dejar los cambios firmes'
+    Write-Host '  There is still internet. Confirm that everything works for you.' -ForegroundColor Cyan
+    Write-Host '  If you do NOT answer, in a few minutes the network goes back to the previous state by itself.' -ForegroundColor Yellow
+    $resp = Read-Host '  Type YES to keep the changes'
     if ($resp -match '^\s*(si|s|yes|y)\s*$') {
         Disable-Reversor
         return $true
     }
 
-    Write-Bitacora 'no confirmado: se revierte' 'WARN'
+    Write-Bitacora 'not confirmed: reverting' 'WARN'
     & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $ScriptEmergencia -Auto
     Disable-Reversor
     return $false
 }
 
 # ---------------------------------------------------------------------------
-# Defender: escribir y releer, porque la Proteccion contra Manipulaciones
-# rechaza en silencio.
+# Defender: write and read back, because Tamper Protection
+# rejects silently.
 # ---------------------------------------------------------------------------
 
 function Set-PreferenciaDefender {
@@ -575,24 +575,24 @@ function Set-PreferenciaDefender {
 
     $antes = $null
     try { $antes = (Get-MpPreference).$Nombre } catch { }
-    if ("$antes" -eq "$Valor") { Write-Bitacora "ya estaba: Defender.$Nombre = $Valor" 'INFO'; return $true }
+    if ("$antes" -eq "$Valor") { Write-Bitacora "already set: Defender.$Nombre = $Valor" 'INFO'; return $true }
 
-    $desc = "Defender.$Nombre = $Valor (antes: $antes)"
+    $desc = "Defender.$Nombre = $Valor (before: $antes)"
     if ($Motivo) { $desc += "  -- $Motivo" }
-    if ($Simular) { Write-Bitacora "SIMULACRO -> $desc" 'DRYRUN'; return $true }
+    if ($Simular) { Write-Bitacora "DRY RUN -> $desc" 'DRYRUN'; return $true }
 
     $param = @{ $Nombre = $Valor }
     try {
         Set-MpPreference @param -ErrorAction Stop
     } catch {
-        Write-Bitacora "FALLO en Defender.$Nombre : $($_.Exception.Message)" 'ERROR'
+        Write-Bitacora "FAILED on Defender.$Nombre : $($_.Exception.Message)" 'ERROR'
         return $false
     }
 
     $despues = $null
     try { $despues = (Get-MpPreference).$Nombre } catch { }
-    if ("$despues" -eq "$Valor") { Write-Bitacora "aplicado: $desc" 'CHANGE'; return $true }
+    if ("$despues" -eq "$Valor") { Write-Bitacora "applied: $desc" 'CHANGE'; return $true }
 
-    Write-Bitacora "RECHAZADO en silencio: Defender.$Nombre sigue en '$despues'. Causa probable: Proteccion contra Manipulaciones." 'WARN'
+    Write-Bitacora "SILENTLY REJECTED: Defender.$Nombre is still '$despues'. Probable cause: Tamper Protection." 'WARN'
     return $false
 }
