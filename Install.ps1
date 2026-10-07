@@ -1,15 +1,15 @@
 <#
 .SYNOPSIS
-    Registra la unica tarea programada del Sentinel: el punto de
-    restauracion diario.
+    Registers the Sentinel's only scheduled task: the daily
+    restore point.
 
 .DESCRIPTION
-    Registra una sola tarea:
+    Registers a single task:
 
-      Sentinel-Daily-Restore-Point   un punto de restauracion cada dia a las 13:00
+      Sentinel-Daily-Restore-Point   one restore point every day at 13:00
 
-    No cambia nada del sistema y no hay ninguna vigilancia periodica:
-    el estado se mira a mano con Audit.ps1 cuando tu quieras.
+    It changes nothing in the system and there is no periodic monitoring:
+    you check the state by hand with Audit.ps1 whenever you want.
 
 .EXAMPLE
     .\Install.ps1
@@ -29,27 +29,27 @@ $tareas = @('Sentinel-Daily-Restore-Point')
 
 Write-Host ''
 Write-Host '   #############################################################' -ForegroundColor DarkCyan
-Write-Host '   #         C E N T I N E L A   --   I N S T A L A R          #' -ForegroundColor White
+Write-Host '   #           S E N T I N E L   --   I N S T A L L            #' -ForegroundColor White
 Write-Host '   #############################################################' -ForegroundColor DarkCyan
 
 if (-not (Assert-Elevado -Script $PSCommandPath -Argumentos @($(if ($Remove) { '-Remove' })))) { return }
 
-# --- Desinstalar ------------------------------------------------------------
+# --- Uninstall --------------------------------------------------------------
 if ($Remove) {
-    Write-Titulo 'RETIRANDO LAS TAREAS'
+    Write-Titulo 'REMOVING THE TASKS'
     foreach ($t in $tareas) {
-        try { Unregister-ScheduledTask -TaskName $t -Confirm:$false -ErrorAction Stop; Write-Bitacora "retirada: $t" 'CHANGE' }
-        catch { Write-Bitacora "no existia: $t" 'INFO' }
+        try { Unregister-ScheduledTask -TaskName $t -Confirm:$false -ErrorAction Stop; Write-Bitacora "removed: $t" 'CHANGE' }
+        catch { Write-Bitacora "did not exist: $t" 'INFO' }
     }
     Disable-Reversor -Silencioso
     Write-Host ''
-    Write-Host '   Tareas retiradas. Los scripts siguen ahi por si los quieres a mano.' -ForegroundColor Green
+    Write-Host '   Tasks removed. The scripts are still there if you want to run them by hand.' -ForegroundColor Green
     Write-Host ''
     return
 }
 
-# --- Tareas -----------------------------------------------------------------
-Write-Titulo 'REGISTRANDO LAS TAREAS'
+# --- Tasks ------------------------------------------------------------------
+Write-Titulo 'REGISTERING THE TASKS'
 
 $exe      = if ($PSVersionTable.PSEdition -eq 'Core') { (Get-Command pwsh.exe -ErrorAction SilentlyContinue).Source } else { $null }
 if (-not $exe) { $exe = 'powershell.exe' }
@@ -57,41 +57,41 @@ $opciones = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoi
               -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Minutes 20) `
               -MultipleInstances IgnoreNew
 
-# Punto de restauracion diario
+# Daily restore point
 try {
-    $orden = "Enable-ComputerRestore -Drive 'C:\'; Checkpoint-Computer -Description 'Sentinel diario' -RestorePointType 'MODIFY_SETTINGS'"
+    $orden = "Enable-ComputerRestore -Drive 'C:\'; Checkpoint-Computer -Description 'Sentinel daily' -RestorePointType 'MODIFY_SETTINGS'"
     $accion = New-ScheduledTaskAction -Execute 'powershell.exe' `
         -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command `"$orden`""
     $disparo = New-ScheduledTaskTrigger -Daily -At '13:00'
     $sistema = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
     Register-ScheduledTask -TaskName 'Sentinel-Daily-Restore-Point' -Action $accion -Trigger $disparo `
         -Principal $sistema -Settings $opciones `
-        -Description 'Un punto de restauracion al dia. Es la red de seguridad mas barata que existe.' `
+        -Description 'One restore point a day. It is the cheapest safety net there is.' `
         -Force -ErrorAction Stop | Out-Null
-    Write-Bitacora 'Sentinel-Daily-Restore-Point registrada: todos los dias a las 13:00' 'CHANGE'
-} catch { Write-Bitacora "Sentinel-Daily-Restore-Point fallo: $($_.Exception.Message)" 'ERROR' }
+    Write-Bitacora 'Sentinel-Daily-Restore-Point registered: every day at 13:00' 'CHANGE'
+} catch { Write-Bitacora "Sentinel-Daily-Restore-Point failed: $($_.Exception.Message)" 'ERROR' }
 
-# --- Comprobacion -----------------------------------------------------------
-Write-Titulo 'COMPROBACION'
+# --- Check ------------------------------------------------------------------
+Write-Titulo 'CHECK'
 foreach ($t in $tareas) {
     try {
         $o = Get-ScheduledTask -TaskName $t -ErrorAction Stop
         Write-Host ("   OK    {0,-26} {1}" -f $t, $o.State) -ForegroundColor Green
     } catch {
-        Write-Host ("   FALLA {0,-26} no registrada" -f $t) -ForegroundColor Red
+        Write-Host ("   FAIL  {0,-26} not registered" -f $t) -ForegroundColor Red
     }
 }
 
 Write-Host ''
-Write-Host '   Listo. El Sentinel no corre solo: solo queda el punto de' -ForegroundColor Green
-Write-Host '   restauracion diario.' -ForegroundColor Green
+Write-Host '   Done. The Sentinel does not run on its own: only the daily' -ForegroundColor Green
+Write-Host '   restore point remains.' -ForegroundColor Green
 Write-Host ''
-Write-Host '   Comandos que vas a usar:' -ForegroundColor Cyan
-Write-Host '     .\Audit.ps1              informe de estado (no cambia nada)' -ForegroundColor Gray
-Write-Host '     .\Audit.ps1 -Cfa         que bloquearia el Acceso Controlado a Carpetas' -ForegroundColor Gray
-Write-Host '     .\Harden.ps1              simulacro: ensena que haria, sin tocar nada' -ForegroundColor Gray
-Write-Host '     .\Harden.ps1 -Apply     blindar de verdad' -ForegroundColor Gray
-Write-Host '     .\Restore.ps1 -Emergency   si te quedas sin Internet' -ForegroundColor Gray
-Write-Host '     .\Install.ps1 -Remove     retirar las tareas' -ForegroundColor Gray
+Write-Host '   Commands you will use:' -ForegroundColor Cyan
+Write-Host '     .\Audit.ps1                status report (changes nothing)' -ForegroundColor Gray
+Write-Host '     .\Audit.ps1 -Cfa           what Controlled Folder Access would block' -ForegroundColor Gray
+Write-Host '     .\Harden.ps1               dry run: shows what it would do, touches nothing' -ForegroundColor Gray
+Write-Host '     .\Harden.ps1 -Apply        harden for real' -ForegroundColor Gray
+Write-Host '     .\Restore.ps1 -Emergency   if you lose internet' -ForegroundColor Gray
+Write-Host '     .\Install.ps1 -Remove      remove the tasks' -ForegroundColor Gray
 Write-Host ''
 Write-Host ''

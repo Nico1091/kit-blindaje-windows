@@ -1,17 +1,16 @@
 <#
 .SYNOPSIS
-    Apaga la telemetria que quedaba (26/09/2026). SIN -Apply NO CAMBIA NADA.
+    Turns off the telemetry that was left. WITHOUT -Apply IT CHANGES NOTHING.
 
 .DESCRIPTION
-    Solo interruptores oficiales; no bloquea dominios ni toca activacion,
-    Tienda ni Windows Update (para no arriesgar un bloqueo de Windows).
-      Usuario (sin admin): Office, consejos y sugerencias de Windows,
-                           PowerShell 7, .NET, VS Code y Claude Code.
-      Equipo  (con admin): politicas de Edge y 5 tareas de recogida de datos.
-    Se quedan a proposito: tareas de compatibilidad de programas,
-    actualizaciones de Office, contenedor de NVIDIA y el autoactualizador
-    de Claude Code.
-    -Revert devuelve todo desde Backups\remaining-telemetry-state.json
+    Official switches only; it does not block domains or touch activation,
+    the Store or Windows Update (so as not to risk Windows being locked).
+      User     (no admin):   Office, Windows tips and suggestions,
+                             PowerShell 7, .NET, VS Code and Claude Code.
+      Computer (admin):      Edge policies and 5 data collection tasks.
+    Left on purpose: program compatibility tasks, Office updates,
+    the NVIDIA container and the Claude Code auto-updater.
+    -Revert restores everything from Backups\remaining-telemetry-state.json
 #>
 
 [CmdletBinding()]
@@ -33,7 +32,7 @@ $RegUsuario = @(
     @('HKCU:\Software\Policies\Microsoft\office\16.0\common\privacy', 'controllerconnectedservicesenabled', 2),
     @('HKCU:\Software\Policies\Microsoft\office\16.0\osm', 'enablelogging', 0),
     @('HKCU:\Software\Policies\Microsoft\office\16.0\osm', 'enableupload', 0),
-    # Windows: consejos, sugerencias y rastreo de inicio de apps
+    # Windows: tips, suggestions and app launch tracking
     @('HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager', 'RotatingLockScreenOverlayEnabled', 0),
     @('HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager', 'SubscribedContent-338393Enabled', 0),
     @('HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager', 'SubscribedContent-353694Enabled', 0),
@@ -71,7 +70,7 @@ function Leer($k, $n) { try { (Get-ItemProperty -Path $k -Name $n -ErrorAction S
 $vsc = Join-Path $env:APPDATA 'Code\User\settings.json'
 $cls = Join-Path $env:USERPROFILE '.claude\settings.json'
 
-# --- Backup (una vez) --------------------------------------------------------
+# --- Backup (once) -------------------------------------------------------------
 if (-not $Simular -and -not $Revert) {
     $e = if (Test-Path $FichResp) { Get-Content $FichResp -Raw | ConvertFrom-Json } else { $null }
     if (-not $e) {
@@ -82,74 +81,74 @@ if (-not $Simular -and -not $Revert) {
         if (Test-Path $vsc) { $e.vscode = [string](Get-Content $vsc -Raw) }
         if (Test-Path $cls) { $e.claude = [string](Get-Content $cls -Raw) }
         $e | ConvertTo-Json -Depth 6 | Set-Content $FichResp -Encoding UTF8
-        Write-Bitacora "valores anteriores respaldados en $FichResp" 'OK'
+        Write-Bitacora "previous values backed up to $FichResp" 'OK'
     }
 }
 
 # --- Revert -------------------------------------------------------------------
 if ($Revert) {
-    Write-Titulo 'DEVOLVIENDO LA TELEMETRIA A COMO ESTABA'
-    if (-not (Test-Path $FichResp)) { Write-Bitacora 'no hay respaldo' 'WARN'; return }
+    Write-Titulo 'PUTTING TELEMETRY BACK AS IT WAS'
+    if (-not (Test-Path $FichResp)) { Write-Bitacora 'there is no backup' 'WARN'; return }
     $e = Get-Content $FichResp -Raw | ConvertFrom-Json
     foreach ($r in $e.reg) { if ($null -eq $r.v) { Remove-ItemProperty -Path $r.k -Name $r.n -ErrorAction SilentlyContinue } else { Set-ValorRegistro -Ruta $r.k -Nombre $r.n -Valor $r.v | Out-Null } }
     foreach ($v in $e.env) { [Environment]::SetEnvironmentVariable($v.n, $v.v, 'User') }
     foreach ($t in $e.tareas) { if ($t.s -ne 'Disabled') { Enable-ScheduledTask -TaskPath $t.p -TaskName $t.n -ErrorAction SilentlyContinue | Out-Null } }
-    # El primer respaldo guardo el texto como objeto de PowerShell (con .value)
+    # The first backup stored the text as a PowerShell object (with .value)
     foreach ($par in @(@($e.vscode, $vsc), @($e.claude, $cls))) {
         $txt = if ($par[0].value) { $par[0].value } else { $par[0] }
         if ($txt) { Set-Content $par[1] $txt -Encoding UTF8 -NoNewline }
     }
-    Rename-Item $FichResp ("telemetria-restante-revertido-$($script:Sello).json")
-    Write-Bitacora 'telemetria devuelta' 'OK'
+    Rename-Item $FichResp ("remaining-telemetry-reverted-$($script:Sello).json")
+    Write-Bitacora 'telemetry restored' 'OK'
     return
 }
 
-Write-Titulo $(if ($Simular) { 'SIMULACRO -- no se cambia nada' } else { 'APAGANDO TELEMETRIA RESTANTE' })
+Write-Titulo $(if ($Simular) { 'DRY RUN -- nothing is changed' } else { 'TURNING OFF REMAINING TELEMETRY' })
 
-# --- Usuario ------------------------------------------------------------------------
+# --- User --------------------------------------------------------------------------
 foreach ($r in $RegUsuario) { Set-ValorRegistro -Ruta $r[0] -Nombre $r[1] -Valor $r[2] -Simular:$Simular | Out-Null }
 foreach ($n in $EnvUsuario.Keys) {
-    if ($Simular) { Write-Bitacora "SIMULACRO -> variable $n=$($EnvUsuario[$n])" 'DRYRUN'; continue }
+    if ($Simular) { Write-Bitacora "DRY RUN -> variable $n=$($EnvUsuario[$n])" 'DRYRUN'; continue }
     [Environment]::SetEnvironmentVariable($n, $EnvUsuario[$n], 'User'); Write-Bitacora "variable $n=$($EnvUsuario[$n])" 'CHANGE'
 }
-# VS Code: settings.json admite comentarios, asi que se inserta la linea en vez de reescribirlo
+# VS Code: settings.json allows comments, so the line is inserted instead of rewriting the file
 if (Test-Path $vsc) {
     $txt = Get-Content $vsc -Raw
     if ($txt -notmatch '"telemetry\.telemetryLevel"') {
-        if ($Simular) { Write-Bitacora 'SIMULACRO -> VS Code telemetry.telemetryLevel = off' 'DRYRUN' }
+        if ($Simular) { Write-Bitacora 'DRY RUN -> VS Code telemetry.telemetryLevel = off' 'DRYRUN' }
         else {
             $sep = if ($txt -match '\{\s*\}') { '' } else { ',' }
-            # Solo la PRIMERA llave: el metodo estatico no admite limite y las cambiaba todas
+            # Only the FIRST brace: the static method takes no limit and replaced all of them
             $i = $txt.IndexOf('{')
             $txt = $txt.Substring(0, $i + 1) + "`r`n    `"telemetry.telemetryLevel`": `"off`"$sep" + $txt.Substring($i + 1)
-            Set-Content $vsc $txt -Encoding UTF8 -NoNewline; Write-Bitacora 'VS Code: telemetria off' 'CHANGE'
+            Set-Content $vsc $txt -Encoding UTF8 -NoNewline; Write-Bitacora 'VS Code: telemetry off' 'CHANGE'
         }
     }
 } elseif (Test-Path (Split-Path $vsc)) {
-    if (-not $Simular) { Set-Content $vsc "{`r`n    `"telemetry.telemetryLevel`": `"off`"`r`n}" -Encoding UTF8; Write-Bitacora 'VS Code: telemetria off (settings.json nuevo)' 'CHANGE' }
+    if (-not $Simular) { Set-Content $vsc "{`r`n    `"telemetry.telemetryLevel`": `"off`"`r`n}" -Encoding UTF8; Write-Bitacora 'VS Code: telemetry off (new settings.json)' 'CHANGE' }
 }
-# Claude Code: variables en settings.json (se mantiene el autoactualizador)
+# Claude Code: variables in settings.json (the auto-updater is kept)
 if (Test-Path $cls) {
     $j = Get-Content $cls -Raw | ConvertFrom-Json
     if (-not $j.env) { $j | Add-Member -NotePropertyName env -NotePropertyValue ([pscustomobject]@{}) }
     foreach ($n in $EnvClaude.Keys) {
         if ($j.env.$n -eq $EnvClaude[$n]) { continue }
-        if ($Simular) { Write-Bitacora "SIMULACRO -> Claude Code env $n=1" 'DRYRUN'; continue }
+        if ($Simular) { Write-Bitacora "DRY RUN -> Claude Code env $n=1" 'DRYRUN'; continue }
         $j.env | Add-Member -NotePropertyName $n -NotePropertyValue $EnvClaude[$n] -Force
         Write-Bitacora "Claude Code: $n=1" 'CHANGE'
     }
     if (-not $Simular) { $j | ConvertTo-Json -Depth 20 | Set-Content $cls -Encoding UTF8 }
 }
 
-if ($UserOnly) { Write-Titulo 'LISTO (solo usuario)'; return }
+if ($UserOnly) { Write-Titulo 'DONE (user only)'; return }
 
-# --- Equipo -----------------------------------------------------------------------
+# --- Computer ---------------------------------------------------------------------
 foreach ($r in $RegEquipo) { Set-ValorRegistro -Ruta $r[0] -Nombre $r[1] -Valor $r[2] -Simular:$Simular | Out-Null }
 foreach ($t in $Tareas) {
     $x = Get-ScheduledTask -TaskPath $t[0] -TaskName $t[1] -ErrorAction SilentlyContinue
     if (-not $x -or $x.State -eq 'Disabled') { continue }
-    if ($Simular) { Write-Bitacora "SIMULACRO -> apagar tarea $($t[0])$($t[1])" 'DRYRUN'; continue }
-    try { Disable-ScheduledTask -TaskPath $t[0] -TaskName $t[1] -ErrorAction Stop | Out-Null; Write-Bitacora "tarea apagada: $($t[1])" 'CHANGE' }
-    catch { Write-Bitacora "tarea $($t[1]): $($_.Exception.Message)" 'WARN' }
+    if ($Simular) { Write-Bitacora "DRY RUN -> disable task $($t[0])$($t[1])" 'DRYRUN'; continue }
+    try { Disable-ScheduledTask -TaskPath $t[0] -TaskName $t[1] -ErrorAction Stop | Out-Null; Write-Bitacora "task disabled: $($t[1])" 'CHANGE' }
+    catch { Write-Bitacora "task $($t[1]): $($_.Exception.Message)" 'WARN' }
 }
-Write-Titulo 'LISTO'
+Write-Titulo 'DONE'

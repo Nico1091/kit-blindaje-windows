@@ -1,50 +1,50 @@
 param([switch]$Revert)
-# Paranoia: lo que aun salia de este equipo hacia Microsoft, hacia otros equipos de internet
-# o hacia la red local, cerrado. No toca la telemetria base ni dominios de Microsoft
-# (riesgo de bloqueo de Windows). Backup unico del estado original; -Revert lo devuelve.
+# Paranoia: closes what was still leaving this computer toward Microsoft, toward other computers on
+# the internet or toward the local network. Does not touch base telemetry or Microsoft domains
+# (risk of Windows being locked). Single backup of the original state; -Revert restores it.
 $resp = "$env:USERPROFILE\Security\Backups\paranoia-state.json"
 
 $cambios = @(
-    # Historial de actividad y portapapeles en la nube
+    # Activity history and cloud clipboard
     @('HKLM:\SOFTWARE\Policies\Microsoft\Windows\System', 'EnableActivityFeed', 0),
     @('HKLM:\SOFTWARE\Policies\Microsoft\Windows\System', 'PublishUserActivities', 0),
     @('HKLM:\SOFTWARE\Policies\Microsoft\Windows\System', 'UploadUserActivities', 0),
     @('HKLM:\SOFTWARE\Policies\Microsoft\Windows\System', 'AllowCrossDeviceClipboard', 0),
-    # Optimizacion de distribucion: no subir actualizaciones a equipos desconocidos de internet
+    # Delivery Optimization: do not upload updates to unknown computers on the internet
     @('HKLM:\SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization', 'DODownloadMode', 0),
-    # Buscar mi dispositivo (envia la ubicacion a Microsoft)
+    # Find my device (sends the location to Microsoft)
     @('HKLM:\SOFTWARE\Policies\Microsoft\FindMyDevice', 'AllowFindMyDevice', 0),
-    # Recall (capturas analizadas por IA) y Copilot
+    # Recall (screenshots analyzed by AI) and Copilot
     @('HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI', 'DisableAIDataAnalysis', 1),
     @('HKCU:\Software\Policies\Microsoft\Windows\WindowsAI', 'DisableAIDataAnalysis', 1),
     @('HKCU:\Software\Policies\Microsoft\Windows\WindowsCopilot', 'TurnOffWindowsCopilot', 1),
-    # Reconocimiento de voz en linea y lista de idiomas expuesta a las paginas
+    # Online speech recognition and language list exposed to web pages
     @('HKCU:\Software\Microsoft\Speech_OneCore\Settings\OnlineSpeechPrivacy', 'HasAccepted', 0),
     @('HKCU:\Control Panel\International\User Profile', 'HttpAcceptLanguageOptOut', 1),
-    # Red local: el equipo deja de anunciar su nombre y de preguntar nombres a los vecinos
+    # Local network: the computer stops announcing its name and asking neighbors for names
     @('HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient', 'EnableMulticast', 0),
     @('HKLM:\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters', 'EnableMDNS', 0),
-    # Sin autodescubrimiento de proxy (WPAD): un vecino no puede ofrecerse como proxy
+    # No proxy auto-discovery (WPAD): a neighbor cannot offer itself as a proxy
     @('HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Internet Settings\WinHttp', 'DisableWpad', 1)
 )
-# NetBIOS apagado en cada adaptador
+# NetBIOS off on every adapter
 Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services\NetBT\Parameters\Interfaces' | ForEach-Object {
     $cambios += , @($_.PSPath, 'NetbiosOptions', 2)
 }
 
 if ($Revert) {
-    if (-not (Test-Path $resp)) { Write-Host 'No hay respaldo.'; exit 1 }
+    if (-not (Test-Path $resp)) { Write-Host 'There is no backup.'; exit 1 }
     $estado = Get-Content $resp -Raw | ConvertFrom-Json
     foreach ($e in $estado.registro) {
         if ($e.existia) { Set-ItemProperty $e.ruta $e.nombre ([int]$e.valor) -Type DWord }
         else { Remove-ItemProperty $e.ruta -Name $e.nombre -EA 0 }
     }
     Set-MpPreference -SubmitSamplesConsent ([int]$estado.muestrasDefender)
-    Write-Host 'Paranoia revertida (algunos cambios de red vuelven al reiniciar).'
+    Write-Host 'Paranoia reverted (some network changes come back after a restart).'
     exit
 }
 
-# Backup: solo se anota lo que aun no estaba anotado, para no pisar el estado original
+# Backup: only what was not recorded yet is recorded, so the original state is never overwritten
 $estado = if (Test-Path $resp) { Get-Content $resp -Raw | ConvertFrom-Json } else { $null }
 $registro = @(if ($estado) { $estado.registro })
 foreach ($c in $cambios) {
@@ -60,10 +60,10 @@ foreach ($c in $cambios) {
     if (-not (Test-Path $c[0])) { New-Item $c[0] -Force | Out-Null }
     Set-ItemProperty $c[0] $c[1] $c[2] -Type DWord
 }
-# Defender: no subir archivos suyos a Microsoft sin preguntar (sigue protegiendo igual)
+# Defender: do not upload the user's files to Microsoft without asking (protection stays the same)
 Set-MpPreference -SubmitSamplesConsent 2
-# IPv6 con direcciones temporales y aleatorias (no delatan el equipo entre redes)
+# IPv6 with temporary, random addresses (they do not identify the computer across networks)
 netsh interface ipv6 set privacy state=enabled | Out-Null
 netsh interface ipv6 set global randomizeidentifiers=enabled | Out-Null
 ipconfig /flushdns | Out-Null
-Write-Host ("Paranoia aplicada: {0} ajustes. LLMNR, mDNS y NetBIOS terminan de apagarse al reiniciar." -f ($cambios.Count + 3))
+Write-Host ("Paranoia applied: {0} settings. LLMNR, mDNS and NetBIOS finish turning off after a restart." -f ($cambios.Count + 3))

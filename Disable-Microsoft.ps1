@@ -1,33 +1,33 @@
 <#
 .SYNOPSIS
-    Apaga la IA de Windows, la telemetria restante y los extras de Office,
-    dejando Word intacto.
+    Turns off Windows AI, the remaining telemetry and the Office extras,
+    leaving Word intact.
 
 .DESCRIPTION
-    NO se toca (Word depende de ello): ClickToRunSvc, la tarea
-    "Office Automatic Updates 2.0" (parches de seguridad de Word) y
+    NOT touched (Word depends on them): ClickToRunSvc, the
+    "Office Automatic Updates 2.0" task (Word security patches) and
     "Office ClickToRun Service Monitor".
 
-    Lo que se apaga queda respaldado en Backups\microsoft-state.json y
-    vuelve con -Revert. Lo desinstalado (Outlook nuevo, Office Actions
-    Server, Office Push Notification, complemento de Teams) no vuelve solo:
-    se reinstala desde la Tienda si algun dia hace falta.
+    What is turned off is backed up to Backups\microsoft-state.json and
+    comes back with -Revert. What is uninstalled (new Outlook, Office Actions
+    Server, Office Push Notification, Teams add-in) does not come back by
+    itself: reinstall it from the Store if you ever need it.
 
 .EXAMPLE
-    .\Disable-Microsoft.ps1            Aplica.
-    .\Disable-Microsoft.ps1 -Revert  Devuelve lo apagado.
+    .\Disable-Microsoft.ps1            Applies.
+    .\Disable-Microsoft.ps1 -Revert    Restores what was turned off.
 #>
 param([switch]$Revert)
 
 $resp = Join-Path $PSScriptRoot 'Backups\microsoft-state.json'
 
-# Servicios que se deshabilitan
+# Services that are disabled
 $Servicios = @(
-    'WSAIFabricSvc',   # Host de componentes de IA de Windows
-    'whesvc',          # Estado y experiencias optimizadas (telemetria)
-    'InventorySvc'     # Inventario de programas que se reporta a Microsoft
+    'WSAIFabricSvc',   # Windows AI components host
+    'whesvc',          # Health and optimized experiences (telemetry)
+    'InventorySvc'     # Program inventory reported to Microsoft
 )
-# Tareas de Office que se apagan (las de actualizacion y el monitor se quedan)
+# Office tasks that are turned off (the update tasks and the monitor stay)
 $TareasOffice = @(
     'Office Actions Server',
     'Office Background Push Maintenance',
@@ -37,23 +37,23 @@ $TareasOffice = @(
     'Office Serviceability Manager',
     'Office Startup Maintenance'
 )
-# Apps de la Tienda que se desinstalan
+# Store apps that are uninstalled
 $Apps = @(
     'Microsoft.OutlookForWindows',
     'Microsoft.Office.ActionsServer',
     'Microsoft.OfficePushNotificationUtility'
 )
-# Registro: ruta, nombre, valor
+# Registry: path, name, value
 $Claves = @(
-    @('HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI', 'DisableClickToDo', 1),              # Click to Do (IA sobre la pantalla)
+    @('HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI', 'DisableClickToDo', 1),              # Click to Do (AI over the screen)
     @('HKCU:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI', 'DisableClickToDo', 1),
-    @('HKCU:\Software\Microsoft\Windows\CurrentVersion\CrossDeviceResume\Configuration', 'IsResumeAllowed', 0),  # continuar desde el telefono
-    @('HKCU:\Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement', 'ScoobeSystemSettingEnabled', 0), # "termina de configurar tu PC"
-    @('HKCU:\Software\Policies\Microsoft\office\common\clienttelemetry', 'sendtelemetry', 3),     # Office: sin datos de diagnostico
-    @('HKCU:\Software\Policies\Microsoft\office\16.0\common\privacy', 'controllerconnectedservicesenabled', 2)   # Office: sin experiencias conectadas opcionales
+    @('HKCU:\Software\Microsoft\Windows\CurrentVersion\CrossDeviceResume\Configuration', 'IsResumeAllowed', 0),  # resume from the phone
+    @('HKCU:\Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement', 'ScoobeSystemSettingEnabled', 0), # "finish setting up your PC"
+    @('HKCU:\Software\Policies\Microsoft\office\common\clienttelemetry', 'sendtelemetry', 3),     # Office: no diagnostic data
+    @('HKCU:\Software\Policies\Microsoft\office\16.0\common\privacy', 'controllerconnectedservicesenabled', 2)   # Office: no optional connected experiences
 )
 
-# --- Elevarse solo -------------------------------------------------------
+# --- Self-elevate --------------------------------------------------------
 $admin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $admin) {
     $a = @('-NoProfile','-ExecutionPolicy','Bypass','-NoExit','-File',"`"$PSCommandPath`"")
@@ -64,23 +64,23 @@ if (-not $admin) {
 
 # --- Revert ------------------------------------------------------------
 if ($Revert) {
-    if (-not (Test-Path $resp)) { 'No hay nada que revertir: el script nunca se aplico.'; return }
+    if (-not (Test-Path $resp)) { 'Nothing to revert: the script was never applied.'; return }
     $e = Get-Content $resp -Raw | ConvertFrom-Json
     foreach ($s in $e.servicios) {
         Set-Service $s.nombre -StartupType $s.inicio -EA 0
         if ($s.estado -eq 'Running') { Start-Service $s.nombre -EA 0 }
-        "servicio $($s.nombre) -> $($s.inicio)"
+        "service $($s.nombre) -> $($s.inicio)"
     }
     foreach ($t in $e.tareas) {
-        if ($t.estado -ne 'Disabled') { Enable-ScheduledTask -TaskPath $t.ruta -TaskName $t.nombre -EA 0 | Out-Null; "tarea $($t.nombre) activa" }
+        if ($t.estado -ne 'Disabled') { Enable-ScheduledTask -TaskPath $t.ruta -TaskName $t.nombre -EA 0 | Out-Null; "task $($t.nombre) enabled" }
     }
     foreach ($c in $e.claves) {
         if ($null -eq $c.antes) { Remove-ItemProperty $c.ruta -Name $c.nombre -EA 0 }
         else { Set-ItemProperty $c.ruta -Name $c.nombre -Value $c.antes }
-        "registro $($c.nombre) devuelto"
+        "registry $($c.nombre) restored"
     }
     Rename-Item $resp ("microsoft-state-reverted-{0:yyyyMMdd-HHmmss}.json" -f (Get-Date))
-    'Listo: devuelto. Lo desinstalado se reinstala desde la Tienda.'
+    'Done: restored. What was uninstalled can be reinstalled from the Store.'
     return
 }
 
@@ -92,53 +92,53 @@ if (-not (Test-Path $resp)) {
         tareas    = @(Get-ScheduledTask -TaskPath '\Microsoft\Office\' -EA 0 | ? TaskName -in $TareasOffice | % { [ordered]@{ ruta = $_.TaskPath; nombre = $_.TaskName; estado = [string]$_.State } })
         claves    = @($Claves | % { $v = $null; try { $v = (Get-ItemProperty $_[0] -Name $_[1] -EA Stop).($_[1]) } catch {}; [ordered]@{ ruta = $_[0]; nombre = $_[1]; antes = $v } })
     } | ConvertTo-Json -Depth 4 | Set-Content $resp -Encoding UTF8
-    "Backup guardado en $resp"
+    "Backup saved to $resp"
 }
 
-# --- 1 Servicios ---------------------------------------------------------
+# --- 1 Services ----------------------------------------------------------
 foreach ($n in $Servicios) {
-    if (-not (Get-Service $n -EA 0)) { "no existe: $n"; continue }
+    if (-not (Get-Service $n -EA 0)) { "does not exist: $n"; continue }
     Stop-Service $n -Force -EA SilentlyContinue
     try { Set-Service $n -StartupType Disabled -EA Stop }
     catch { Set-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Services\$n" -Name Start -Value 4 -EA SilentlyContinue }
 }
 
-# --- 2 Tareas de Office --------------------------------------------------
+# --- 2 Office tasks ------------------------------------------------------
 Get-ScheduledTask -TaskPath '\Microsoft\Office\' -EA 0 | ? TaskName -in $TareasOffice | Disable-ScheduledTask -EA 0 | Out-Null
 
-# --- 3 Registro ----------------------------------------------------------
+# --- 3 Registry ----------------------------------------------------------
 foreach ($c in $Claves) {
     if (-not (Test-Path $c[0])) { New-Item $c[0] -Force | Out-Null }
     New-ItemProperty $c[0] -Name $c[1] -Value $c[2] -PropertyType DWord -Force | Out-Null
 }
 
-# --- 4 Apps de la Tienda -------------------------------------------------
+# --- 4 Store apps --------------------------------------------------------
 foreach ($a in $Apps) {
     Get-AppxPackage $a -EA 0 | Remove-AppxPackage -EA SilentlyContinue
     Get-AppxProvisionedPackage -Online -EA 0 | ? DisplayName -eq $a | Remove-AppxProvisionedPackage -Online -EA SilentlyContinue | Out-Null
 }
 
-# --- 5 Complemento de Teams para Office (solo sirve al Outlook clasico) ---
+# --- 5 Teams add-in for Office (only serves classic Outlook) -------------
 Get-ItemProperty 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*','HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*','HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' -EA 0 |
     ? DisplayName -like 'Microsoft Teams Meeting Add-in*' | % {
         if ($_.PSChildName -match '^\{[0-9A-F-]+\}$') { Start-Process msiexec.exe -ArgumentList "/x $($_.PSChildName) /qn /norestart" -Wait }
     }
 
-# --- 6 Procesos que quedaron vivos --------------------------------------
+# --- 6 Processes left running --------------------------------------------
 Stop-Process -Name AppActions, CrossDeviceResume, UserOOBEBroker -Force -EA SilentlyContinue
 
-# --- Comprobacion --------------------------------------------------------
+# --- Check ---------------------------------------------------------------
 Start-Sleep 3
 ''
-'===== RESULTADO ====='
+'===== RESULT ====='
 foreach ($n in $Servicios) { $s = Get-Service $n -EA 0; '{0,-16} {1,-9} {2}' -f $n, $s.StartType, $s.Status }
-'Tareas de Office apagadas: ' + @(Get-ScheduledTask -TaskPath '\Microsoft\Office\' -EA 0 | ? { $_.TaskName -in $TareasOffice -and $_.State -eq 'Disabled' }).Count + ' de ' + $TareasOffice.Count
-foreach ($a in $Apps) { '{0,-42} {1}' -f $a, $(if (Get-AppxPackage $a -EA 0) { 'SIGUE' } else { 'quitada' }) }
-'Complemento de Teams: ' + $(if (Get-ItemProperty 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*','HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*','HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' -EA 0 | ? DisplayName -like 'Microsoft Teams Meeting Add-in*') { 'SIGUE' } else { 'quitado' })
+'Office tasks turned off: ' + @(Get-ScheduledTask -TaskPath '\Microsoft\Office\' -EA 0 | ? { $_.TaskName -in $TareasOffice -and $_.State -eq 'Disabled' }).Count + ' of ' + $TareasOffice.Count
+foreach ($a in $Apps) { '{0,-42} {1}' -f $a, $(if (Get-AppxPackage $a -EA 0) { 'STILL THERE' } else { 'removed' }) }
+'Teams add-in: ' + $(if (Get-ItemProperty 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*','HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*','HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' -EA 0 | ? DisplayName -like 'Microsoft Teams Meeting Add-in*') { 'STILL THERE' } else { 'removed' })
 ''
-'--- Word (debe seguir todo bien) ---'
+'--- Word (everything must still work) ---'
 'ClickToRunSvc: ' + (Get-Service ClickToRunSvc).Status
 'WINWORD.EXE:   ' + (Test-Path 'C:\Program Files\Microsoft Office\root\Office16\WINWORD.EXE')
-'Actualizaciones de Office: ' + (Get-ScheduledTask -TaskPath '\Microsoft\Office\' -TaskName 'Office Automatic Updates 2.0' -EA 0).State
+'Office updates: ' + (Get-ScheduledTask -TaskPath '\Microsoft\Office\' -TaskName 'Office Automatic Updates 2.0' -EA 0).State
 ''
-'Listo. Puede cerrar esta ventana.'
+'Done. You can close this window.'
