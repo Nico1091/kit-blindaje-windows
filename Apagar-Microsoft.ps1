@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
     Apaga la IA de Windows, la telemetria restante y los extras de Office,
-    dejando Word intacto. Pedido y autorizado por el el 27/09/2026.
+    dejando Word intacto.
 
 .DESCRIPTION
     NO se toca (Word depende de ello): ClickToRunSvc, la tarea

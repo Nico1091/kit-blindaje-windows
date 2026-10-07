@@ -442,8 +442,8 @@ function Test-Conectividad {
     }
     $r['https'] = $https
 
-    # Servicios propios que escuchan en local y que el usa
-    $suyos = @{ 'puente-figma' = 3939; 'scriptorium' = 8765; 'lm-studio' = 1234 }
+    # Servicios propios que escuchan en local (nombre = puerto). Agregue los suyos.
+    $suyos = @{}
     foreach ($n in $suyos.Keys) {
         $p = $suyos[$n]
         $vivo = $null -ne (Get-NetTCPConnection -LocalPort $p -State Listen -ErrorAction SilentlyContinue)

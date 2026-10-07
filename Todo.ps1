@@ -198,7 +198,7 @@ Write-Host '                        y las 19 reglas contra ataques' -ForegroundC
 Write-Host '     2  Puertos         Se cierran WinRM y el servidor SMB, y se limpian' -ForegroundColor Gray
 Write-Host '                        las reglas de firewall que sobran' -ForegroundColor DarkGray
 Write-Host '     3  Cerrojos        UAC al maximo, sin autorun de USB, extensiones' -ForegroundColor Gray
-Write-Host '                        visibles. Antes migra tus lanzadores de Scriptorium' -ForegroundColor DarkGray
+Write-Host '                        visibles. Antes migra tus lanzadores .vbs propios' -ForegroundColor DarkGray
 Write-Host '     4  Privacidad      Telemetria al minimo, ubicacion cerrada, DNS cifrado' -ForegroundColor Gray
 Write-Host '     5  Sigilo          Dejas de aparecer en la red y de responder a ping' -ForegroundColor Gray
 Write-Host '     6  Maquinas virt.  Tu VM de laboratorio deja de estar en tu red' -ForegroundColor Gray
@@ -207,7 +207,7 @@ Write-Host '     8  Credenciales    Sin contrasenas en claro en memoria, solo TL
 Write-Host '     9  Ransomware      Tus carpetas protegidas y puntos de restauracion' -ForegroundColor Gray
 Write-Host ''
 Write-Host '   Lo que NO se toca: tu Internet, Windows Update, Defender,' -ForegroundColor Green
-Write-Host '   Scriptorium, el puente de Figma, LM Studio ni tus mineros.' -ForegroundColor Green
+Write-Host '   ni tus programas propios.' -ForegroundColor Green
 
 if ($SoloSimulacro) {
     Write-Host ''

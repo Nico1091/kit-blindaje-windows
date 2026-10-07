@@ -28,8 +28,8 @@ La guía completa, con cada medida, su comando y cómo se deshace, está en `GUI
 
 ## Instalación
 
-1. Copie el contenido de este paquete a `%USERPROFILE%\Seguridad`. Los botones y los scripts buscan esa carpeta.
-2. Copie los archivos de `botones` al lugar donde quiera tenerlos (Escritorio o Descargas).
+1. Cree un punto de restauración de Windows.
+2. Haga doble clic en `INSTALAR-KIT.bat`. Copia el kit a `%USERPROFILE%\Seguridad` y los botones a la carpeta «Kit de blindaje» del Escritorio, sin cambiar ninguna configuración.
 3. Ejecute primero **VER QUE BLOQUEARIA** y lea el resumen.
 4. Si está de acuerdo, ejecute **BLINDAR MI PC**. Los botones piden permiso de administrador por sí solos.
 
@@ -57,4 +57,11 @@ Lea esto antes de pulsar cualquier botón que no sea un simulacro.
 
 Gratis para uso personal en sus propios equipos. Puede modificarlo para usted, pero no venderlo. Se entrega tal cual, sin garantía de ningún tipo: usted asume las consecuencias de los cambios que aplique.
 
-Si le sirvió, puede apoyar el proyecto con una donación. Solo se publican direcciones para **recibir**: nadie de este proyecto le pedirá jamás frases semilla, claves ni contraseñas, y cualquiera que lo haga a nombre del proyecto es un estafador.
+Si le sirvió, puede apoyar el proyecto con una donación:
+
+- **Bitcoin**, solo por la red **Bitcoin (BTC)**: `1ED8zqpXYS4MspjZn29s2Bo4WQLgnMM5yi`
+- **Ethereum**, solo por la red **Ethereum (ERC20)**: `0x1e47c2a6f0401f4df82bf2c83238608a354da696`
+
+Use exactamente esa red: lo que llegue por otra red (BEP20, TRC20, Arbitrum u otra) se pierde y no se puede recuperar. Compruebe los primeros y los últimos caracteres después de pegar la dirección, porque hay programas maliciosos que la cambian en el portapapeles. Las donaciones son voluntarias, no reembolsables y no compran soporte ni garantía. Solo se publican direcciones para **recibir**: nadie de este proyecto le pedirá jamás frases semilla, claves ni contraseñas, y cualquiera que lo haga a nombre del proyecto es un estafador.
+
+El detalle completo está en `MANUAL.md` (instalación, botones, uso manual, advertencias) y en `COMANDOS.md` (cada script y cada opción explicados).

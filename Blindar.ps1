@@ -422,7 +422,7 @@ function Invoke-CapaCerrojos {
             -Nombre 'Enabled' -Valor 0 -Simular:$Simular | Out-Null
     } else {
         Write-Bitacora 'WINDOWS SCRIPT HOST SE QUEDA ACTIVO.' 'AVISO'
-        Write-Bitacora 'La migracion de tus lanzadores no salio limpia, y romperte Scriptorium' 'AVISO'
+        Write-Bitacora 'La migracion de tus lanzadores no salio limpia, y romper tus lanzadores' 'AVISO'
         Write-Bitacora 'o la granja de noticias es peor que dejar WSH encendido. Arregla la' 'AVISO'
         Write-Bitacora 'migracion y vuelve a lanzar:  .\Blindar.ps1 -Aplicar -Capas cerrojos' 'AVISO'
     }
@@ -1139,7 +1139,7 @@ function Invoke-CapaRansomware {
         "$env:USERPROFILE\Seguridad"
     ) | Where-Object { Test-Path $_ }
 
-    foreach ($extra in @("$env:USERPROFILE\Scriptorium", "$env:USERPROFILE\scriptorium", "$env:USERPROFILE\Documents\Scriptorium")) {
+    foreach ($extra in @()) {
         if (Test-Path $extra) { $carpetas += $extra }
     }
 

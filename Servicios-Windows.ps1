@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Apaga servicios de Windows que el no usa (26/09/2026). SIN -Aplicar NO CAMBIA NADA.
+    Apaga servicios de Windows que casi nadie usa. SIN -Aplicar NO CAMBIA NADA.
 
 .DESCRIPTION
     MapsBroker  mapas sin conexion           TrkWks   rastreo de enlaces en red

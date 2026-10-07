@@ -4,7 +4,7 @@
 
 .DESCRIPTION
     Solo interruptores oficiales; no bloquea dominios ni toca activacion,
-    Tienda ni Windows Update (el no quiere arriesgar otro bloqueo de Windows).
+    Tienda ni Windows Update (para no arriesgar un bloqueo de Windows).
       Usuario (sin admin): Office, consejos y sugerencias de Windows,
                            PowerShell 7, .NET, VS Code y Claude Code.
       Equipo  (con admin): politicas de Edge y 5 tareas de recogida de datos.
