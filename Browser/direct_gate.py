@@ -1,21 +1,21 @@
 """
-Puerta directa del Browser: 127.0.0.1:9060 (04/10/2026).
+Browser direct gate: 127.0.0.1:9060.
 
-Es la unica salida directa a internet que tiene el navegador, y solo para los sitios de
-direct.txt, que decide el usuario, sitio por sitio (solo los que rechazan a toda la red Tor). El cortafuegos sigue
-prohibiendo a librewolf.exe salir a internet: solo puede hablar con esta puerta o con Tor (9050).
+It is the browser's only direct way out to the Internet, and only for the sites in direct.txt,
+which the user picks site by site (only those that reject the whole Tor network). The firewall still
+forbids librewolf.exe from reaching the Internet: it can only talk to this gate or to Tor (9050).
 
-Protecciones:
-  - Solo escucha en este equipo (127.0.0.1): nadie de la red de la casa puede usarla.
-  - Exige usuario: el sitio principal de la pagina, que pone el filtro de rutas de los ajustes del
-    Browser. Si ese sitio no esta en direct.txt, rechaza la conexion.
-  - Solo HTTPS (puerto 443): nada viaja sin cifrar.
-  - Nunca hacia la red de casa, el propio equipo ni direcciones reservadas: una pagina no puede usar
-    la puerta para atacar el router o la impresora (DNS rebinding).
-  - No guarda lo que visitas: solo cuenta conexiones por sitio (puerta.json) y anota los rechazos
-    (puerta.log, con tope de tamano).
+Protections:
+  - Listens only on this PC (127.0.0.1): nobody on the home network can use it.
+  - Requires a username: the page's main site, set by the routing filter in the Browser
+    settings. If that site is not in direct.txt, the connection is refused.
+  - HTTPS only (port 443): nothing travels unencrypted.
+  - Never towards the home network, this PC or reserved addresses: a page cannot use the gate
+    to attack the router or the printer (DNS rebinding).
+  - Does not record what you visit: it only counts connections per site (puerta.json) and logs
+    refusals (puerta.log, size-capped).
 
-Uso: la arranca tor_watchdog.pyw (tarea "Browser - Tor always") en un hilo; tambien puede correr sola:
+Usage: started by tor_watchdog.pyw (task "Browser - Tor always") in a thread; it can also run alone:
     pythonw direct_gate.py
 """
 import asyncio
@@ -33,10 +33,10 @@ ESTADO = os.path.join(AQUI, "puerta.json")
 DIRECCION = ("127.0.0.1", 9060)
 PUERTOS = {443}
 ESPERA = 20
-# Plazo de conexion por direccion (04/10/2026). En esta casa el IPv6 se cae a los minutos de conectar
-# (el equipo deja de contestar al router), y una conexion IPv6 se queda colgada hasta agotar el plazo:
-# medido, 8 conexiones de un sitio fallaron tras 20 s cada una. Con IPv6 se corta a los 4 s para que el
-# navegador pase enseguida a la siguiente direccion; con IPv4 se espera mas.
+# Connection timeout per address. On some home networks IPv6 dies minutes after connecting, and an
+# IPv6 connection then hangs until the timeout: measured, 8 connections to one site failed after 20 s
+# each. With IPv6 it gives up after 4 s so the browser moves on to the next address right away; with
+# IPv4 it waits longer.
 PLAZO_V4 = 12
 PLAZO_V6 = 4
 
@@ -46,7 +46,7 @@ _desde = time.strftime("%Y-%m-%d %H:%M:%S")
 
 
 def leer_lista():
-    """{sitio: [dominios propios]} de direct.txt; se relee si el archivo cambia."""
+    """{site: [own domains]} from direct.txt; re-read when the file changes."""
     try:
         m = os.path.getmtime(LISTA)
     except OSError:
@@ -118,8 +118,8 @@ def _familia(ip):
 
 
 async def _conectar(ips, puerto):
-    """Prueba las direcciones en orden, IPv4 primero, cada una con su plazo. Devuelve (lector, escritor,
-    ip). Si fallan todas, lanza el ultimo error."""
+    """Tries the addresses in order, IPv4 first, each with its own timeout. Returns (reader, writer,
+    ip). If all fail, raises the last error."""
     ultimo = None
     for ip in sorted(ips, key=lambda x: _familia(x) == "v6"):
         plazo = PLAZO_V6 if _familia(ip) == "v6" else PLAZO_V4
@@ -128,7 +128,7 @@ async def _conectar(ips, puerto):
             return l, e, ip
         except (asyncio.TimeoutError, OSError) as err:
             ultimo = err
-    raise ultimo or OSError("sin direcciones")
+    raise ultimo or OSError("no addresses")
 
 
 async def _atender(lector, escritor):
@@ -149,7 +149,7 @@ async def _atender(lector, escritor):
         await lector.readexactly(plen)
         if not sitio_permitido(sitio):
             escritor.write(b"\x01\x01")
-            anotar(f"RECHAZO sitio no autorizado: {sitio}")
+            anotar(f"REFUSED unauthorized site: {sitio}")
             return
         escritor.write(b"\x01\x00")
         await escritor.drain()
@@ -167,14 +167,14 @@ async def _atender(lector, escritor):
         puerto = struct.unpack(">H", await lector.readexactly(2))[0]
         if cmd != 1:
             escritor.write(b"\x05\x07\x00\x01" + b"\x00" * 6)
-            anotar(f"RECHAZO orden {cmd} no permitida ({sitio})")
+            anotar(f"REFUSED command {cmd} not allowed ({sitio})")
             return
         if puerto not in PUERTOS:
             escritor.write(b"\x05\x02\x00\x01" + b"\x00" * 6)
-            anotar(f"RECHAZO puerto {puerto} sin cifrar ({sitio})")
+            anotar(f"REFUSED unencrypted port {puerto} ({sitio})")
             return
-        # El navegador resuelve el nombre en este equipo (Unbound, con DNSSEC; asi tambien usa ECH) y
-        # manda la direccion (tipo 1 o 4). Si manda un nombre (tipo 3), lo resuelve la puerta.
+        # The browser resolves the name on this PC (Unbound, with DNSSEC; that way it also uses ECH) and
+        # sends the address (type 1 or 4). If it sends a name (type 3), the gate resolves it.
         if tipo == 3:
             tipo_destino = "nombre"
             infos = await asyncio.get_running_loop().getaddrinfo(destino, puerto, type=socket.SOCK_STREAM)
@@ -185,7 +185,7 @@ async def _atender(lector, escritor):
         buenas = [ip for ip in ips if ip_publica(ip)]
         if not buenas:
             escritor.write(b"\x05\x02\x00\x01" + b"\x00" * 6)
-            anotar(f"RECHAZO destino no publico ({sitio}): {ips}")
+            anotar(f"REFUSED non-public destination ({sitio}): {ips}")
             return
         remoto_l, remoto_e, _ = await _conectar(buenas, puerto)
         escritor.write(b"\x05\x00\x00\x01" + b"\x00" * 6)
@@ -199,7 +199,7 @@ async def _atender(lector, escritor):
                 escritor.write(b"\x05\x04\x00\x01" + b"\x00" * 6)
             except Exception:
                 pass
-            anotar(f"FALLO de conexion ({sitio}, destino {tipo_destino}, {time.monotonic() - t0:.1f} s): "
+            anotar(f"CONNECTION FAILED ({sitio}, destination {tipo_destino}, {time.monotonic() - t0:.1f} s): "
                    f"{type(e).__name__}")
     finally:
         try:
@@ -223,7 +223,7 @@ async def _principal():
 
 
 def servir():
-    """Bloquea sirviendo. Si el puerto ya esta ocupado (otra puerta en marcha), vuelve sin hacer nada."""
+    """Blocks while serving. If the port is already taken (another gate running), returns without doing anything."""
     try:
         asyncio.run(_principal())
     except OSError:

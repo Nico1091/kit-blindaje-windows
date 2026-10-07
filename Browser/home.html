@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -98,18 +98,18 @@
   </div>
   <h1>Browser</h1>
   <form action="https://html.duckduckgo.com/html/" method="get" role="search">
-    <select id="motor" aria-label="Motor">
+    <select id="motor" aria-label="Search engine">
       <option value="https://html.duckduckgo.com/html/">DuckDuckGo</option>
       <option value="https://search.brave.com/search">Brave</option>
       <option value="https://www.mojeek.com/search">Mojeek</option>
-      <option value="tor">Tor (secreto)</option>
+      <option value="tor">Tor (private)</option>
     </select>
-    <input name="q" id="q" type="search" placeholder="Busca lo que quieras..." autocomplete="off" autofocus aria-label="Buscar">
-    <button type="submit">Buscar</button>
+    <input name="q" id="q" type="search" placeholder="Search for anything..." autocomplete="off" autofocus aria-label="Search">
+    <button type="submit">Search</button>
   </form>
   <ul class="accesos">
     <li><a href="https://www.mojeek.com/">Mojeek</a></li>
-    <li><a href="https://es.wikipedia.org/">Wikipedia</a></li>
+    <li><a href="https://en.wikipedia.org/">Wikipedia</a></li>
     <li><a href="https://github.com/">GitHub</a></li>
   </ul>
   <p class="caritas" aria-hidden="true"><span>😊</span><span>😄</span><span>😁</span><span>🙂</span><span>😆</span></p>
@@ -125,7 +125,7 @@
   };
   motor.addEventListener('change', ponerMotor);
   ponerMotor();
-  // Tor: la busqueda se abre dentro de la red Tor; al volver, el selector regresa a Mojeek
+  // Tor: the search opens inside the Tor network; on return, the selector goes back to the default engine
   form.addEventListener('submit', (ev) => {
     if (motor.value !== 'tor') return;
     ev.preventDefault();

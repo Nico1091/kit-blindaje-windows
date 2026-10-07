@@ -1,28 +1,28 @@
 """
-Carrera de circuitos del Browser: 127.0.0.1:9070 (04/10/2026).
+Browser circuit race: 127.0.0.1:9070.
 
-Medido el 04/10: con Tor, mas o menos 1 de cada 10 paginas nuevas cae en un circuito lento o muerto, y
-Tor no lo abandona hasta pasados 10 s (no deja bajar ese tiempo). Esta pieza se pone entre el navegador
-y Tor (9050) y hace competir varios circuitos en la PRIMERA conexion de cada sitio:
+Measured: with Tor, roughly 1 in 10 new pages lands on a slow or dead circuit, and Tor does not give
+up on it for 10 s (that time cannot be lowered). This piece sits between the browser and Tor (9050)
+and makes several circuits compete on the FIRST connection to each site:
 
-  modo "saludo" (por defecto): acepta la conexion del navegador, toma su primer mensaje (el saludo TLS)
-      y lo envia por N circuitos; gana el primero cuyo servidor RESPONDE. Asi se elige el circuito que
-      de verdad contesta antes, no solo el que conecta antes. Los demas se cierran.
-  modo "conexion": gana el primer circuito que conecta (Tor dice "conectado").
+  mode "saludo" (default): accepts the browser's connection, takes its first message (the TLS hello)
+      and sends it over N circuits; the first one whose server ANSWERS wins. That picks the circuit
+      that really replies first, not just the one that connects first. The others are closed.
+  mode "conexion": the first circuit to connect wins (Tor says "connected").
 
-Despues, todo el sitio sigue por el circuito ganador durante "vigencia_s" (como Tor, 9 minutos), para no
-mezclar IP (Twitch falla si las mezcla). Si ese circuito cae del todo, el sitio pasa a otro.
+After that, the whole site keeps using the winning circuit for "vigencia_s" (like Tor, 9 minutes), so
+IPs are not mixed (Twitch breaks if they are). If that circuit dies completely, the site moves to another.
 
-Parametros en speed.json, bloque "carrera" (se relee solo al cambiar): activa, modo, circuitos
-(1-3), espera_s (0 = todos a la vez; si no, cada circuito extra entra tras esa espera), vigencia_s,
-max_simultaneas (carreras a la vez; por encima, un solo circuito: evita atascar la cola de Tor).
+Parameters in speed.json, block "carrera" (re-read only when it changes): activa, modo, circuitos
+(1-3), espera_s (0 = all at once; otherwise each extra circuit joins after that delay), vigencia_s,
+max_simultaneas (races at once; above that, a single circuit: avoids clogging Tor's queue).
 
-  - No sale nunca directo: solo habla con Tor. Si esta pieza no responde, el navegador pasa solo a Tor
-    sin carrera (proxy de respaldo en el filtro de rutas).
-  - Solo escucha en este equipo. No guarda lo que visitas: solo cuenta carreras y ganadores (carrera.json).
+  - Never goes direct: it only talks to Tor. If this piece does not answer, the browser falls back to
+    Tor without a race (backup proxy in the routing filter).
+  - Listens only on this PC. Does not record what you visit: it only counts races and winners (carrera.json).
 
-La arranca tor_watchdog.pyw en un hilo; tambien puede correr sola:  pythonw race.py
-Variables para pruebas: CARRERA_PUERTO (9070), CARRERA_TOR_PUERTO (9050), CARRERA_CONFIG (speed.json).
+Started by tor_watchdog.pyw in a thread; it can also run alone:  pythonw race.py
+Test variables: CARRERA_PUERTO (9070), CARRERA_TOR_PUERTO (9050), CARRERA_CONFIG (speed.json).
 """
 import asyncio
 import json
@@ -47,7 +47,7 @@ _desde = time.strftime("%Y-%m-%d %H:%M:%S")
 
 
 def conf():
-    """Bloque "carrera" de speed.json, releido solo si el archivo cambio."""
+    """Block "carrera" of speed.json, re-read only if the file changed."""
     try:
         m = os.path.getmtime(CONFIG)
     except OSError:
@@ -65,18 +65,18 @@ def conf():
 
 
 async def _por_tor(usuario, tipo, destino, puerto):
-    """Conexion SOCKS5 con Tor aislada por usuario (un circuito por usuario). Devuelve (lector, escritor)."""
+    """SOCKS5 connection to Tor isolated by username (one circuit per username). Returns (reader, writer)."""
     l, e = await asyncio.open_connection(*TOR)
     try:
         e.write(b"\x05\x01\x02")
         await e.drain()
         if await l.readexactly(2) != b"\x05\x02":
-            raise OSError("Tor no acepto la autenticacion")
+            raise OSError("Tor did not accept the authentication")
         u = usuario.encode("utf-8")[:255]
         e.write(b"\x01" + bytes([len(u)]) + u + b"\x06carita")
         await e.drain()
         if (await l.readexactly(2))[1] != 0:
-            raise OSError("Tor rechazo el usuario")
+            raise OSError("Tor rejected the username")
         e.write(b"\x05\x01\x00" + bytes([tipo]) + destino + struct.pack(">H", puerto))
         await e.drain()
         cab = await l.readexactly(4)
@@ -95,14 +95,14 @@ async def _por_tor(usuario, tipo, destino, puerto):
 
 
 async def _por_tor_con_saludo(usuario, tipo, destino, puerto, saludo):
-    """Conecta por un circuito, envia el saludo del navegador y espera la primera respuesta del servidor."""
+    """Connects through a circuit, sends the browser's hello and waits for the server's first reply."""
     l, e = await _por_tor(usuario, tipo, destino, puerto)
     try:
         e.write(saludo)
         await e.drain()
         primeros = await l.read(65536)
         if not primeros:
-            raise ConnectionResetError("el servidor cerro sin responder")
+            raise ConnectionResetError("the server closed without answering")
         return l, e, primeros
     except BaseException:
         e.close()
@@ -115,8 +115,8 @@ def _cerrar_si_conecto(tarea):
 
 
 async def _competir(fabricar, n, espera):
-    """Lanza hasta n intentos (fabricar(i) -> corrutina), escalonados por 'espera' segundos (0 = a la vez).
-    Devuelve (indice_ganador, resultado) del primero que acaba bien; si fallan todos, lanza el ultimo error."""
+    """Launches up to n attempts (fabricar(i) -> coroutine), staggered by 'espera' seconds (0 = at once).
+    Returns (winner_index, result) of the first to succeed; if all fail, raises the last error."""
     tareas = {}
     siguiente = 0
     ultimo_error = None
@@ -151,11 +151,11 @@ async def _competir(fabricar, n, espera):
     for resto in tareas:
         resto.add_done_callback(_cerrar_si_conecto)
         resto.cancel()
-    raise ultimo_error or TimeoutError("ningun circuito respondio")
+    raise ultimo_error or TimeoutError("no circuit answered")
 
 
 def _orden(clave, c):
-    """Sufijos de circuito a probar, empezando por el ganador vigente del sitio."""
+    """Circuit suffixes to try, starting with the site's current winner."""
     sufijos = list(SUFIJOS[:c["circuitos"]])
     g = _ganador.get(clave)
     if g and time.time() - g[1] < c["vigencia_s"] and g[0] in SUFIJOS:
@@ -188,9 +188,9 @@ def _respuesta(codigo):
 
 
 _en_carrera = {}
-# Tope de carreras a la vez (04/10/2026): cada carrera pide 2 circuitos a Tor (4 patas con Conflux). Una
-# rafaga de carreras llena la cola de circuitos de Tor y todo espera (medido: tras 150 carreras seguidas,
-# 9-40 s durante unos 20 s). Por encima del tope, la conexion va por un solo circuito, sin competir.
+# Cap on simultaneous races: each race asks Tor for 2 circuits (4 legs with Conflux). A burst of
+# races fills Tor's circuit queue and everything waits (measured: after 150 races in a row, 9-40 s
+# for about 20 s). Above the cap, the connection uses a single circuit, without competing.
 _en_curso = {"n": 0}
 
 
@@ -203,7 +203,7 @@ def _codigo(e):
 
 
 async def _abrir_vigente(clave, sufijos, tipo, destino, puerto):
-    """Sitio ya abierto: su circuito ganador; si cae del todo, el siguiente (y el sitio entero pasa a el)."""
+    """Site already open: its winning circuit; if it dies completely, the next one (and the whole site moves to it)."""
     ultimo = None
     for k, sufijo in enumerate(sufijos):
         try:
@@ -213,12 +213,12 @@ async def _abrir_vigente(clave, sufijos, tipo, destino, puerto):
             return rl, re_
         except (OSError, asyncio.TimeoutError, asyncio.IncompleteReadError) as e:
             ultimo = e
-    raise ultimo or TimeoutError("sin circuito")
+    raise ultimo or TimeoutError("no circuit")
 
 
 async def _leer_saludo(lector):
-    """Primer mensaje del navegador completo: si es TLS, el registro entero (el saludo con clave
-    poscuantica ocupa ~2 KB y puede llegar en dos trozos)."""
+    """The browser's complete first message: if TLS, the whole record (the hello with a post-quantum
+    key takes ~2 KB and may arrive in two pieces)."""
     saludo = await asyncio.wait_for(lector.read(65536), 20)
     if saludo and saludo[0] == 0x16 and len(saludo) >= 5:
         largo = 5 + int.from_bytes(saludo[3:5], "big")
@@ -262,8 +262,8 @@ async def _atender(lector, escritor):
         _cuenta["conexiones"] += 1
         c = conf()
 
-        # Si otra conexion del mismo sitio esta compitiendo, se espera a su ganador: una sola carrera por
-        # sitio, para que todo el sitio salga por la misma IP.
+        # If another connection to the same site is racing, wait for its winner: one race per site,
+        # so the whole site goes out through the same IP.
         ev = _en_carrera.get(clave)
         if c["activa"] and ev is not None:
             try:
@@ -275,7 +275,7 @@ async def _atender(lector, escritor):
             sufijos, vigente = [""], True
 
         if not vigente and len(sufijos) > 1 and _en_curso["n"] >= int(c.get("max_simultaneas", 3)):
-            sufijos = sufijos[:1]          # demasiadas carreras a la vez: un solo circuito
+            sufijos = sufijos[:1]          # too many races at once: a single circuit
         if vigente or len(sufijos) == 1:
             try:
                 rl, re_ = await _abrir_vigente(clave, sufijos, tipo, destino, puerto)
@@ -290,7 +290,7 @@ async def _atender(lector, escritor):
             await asyncio.gather(_pasar(lector, re_), _pasar(rl, escritor))
             return
 
-        # Primera conexion del sitio: carrera (una sola por sitio).
+        # First connection to the site: race (only one per site).
         ev = asyncio.Event()
         _en_carrera[clave] = ev
         _cuenta["carreras"] += 1
@@ -371,7 +371,7 @@ async def _principal():
 
 
 def servir():
-    """Bloquea sirviendo. Si el puerto ya esta ocupado (otra carrera en marcha), vuelve sin hacer nada."""
+    """Blocks while serving. If the port is already taken (another race running), returns without doing anything."""
     try:
         asyncio.run(_principal())
     except OSError:

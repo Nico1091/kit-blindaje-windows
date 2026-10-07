@@ -1,19 +1,19 @@
-# Mantiene encendido el motor Tor del Browser desde que se inicia sesion.
-# Lo arranca la tarea programada "Browser - Tor always". Cada 30 s comprueba el
-# puerto 9050 y, si no responde, vuelve a encender el motor en Ubuntu.
-# Desde el 04/10/2026 tambien mantiene la puerta directa protegida (direct_gate.py,
-# 127.0.0.1:9060), unica salida directa del navegador y solo para los sitios de direct.txt, y el
-# motor de salida elegida (tor-chosen.sh, 127.0.0.1:9055) para los de chosen_exit.txt, y la
-# carrera de circuitos (race.py, 127.0.0.1:9070), parametros en speed.json.
+# Keeps the Browser's Tor engine running from sign-in onwards.
+# Started by the scheduled task "Browser - Tor always". Every 30 s it checks
+# port 9050 and, if it does not answer, starts the engine in Ubuntu again.
+# It also keeps the protected direct gate running (direct_gate.py, 127.0.0.1:9060), the
+# browser's only direct way out and only for the sites in direct.txt; the chosen-exit engine
+# (tor-chosen.sh, 127.0.0.1:9055) for those in chosen_exit.txt; and the circuit race
+# (race.py, 127.0.0.1:9070), with parameters in speed.json.
 #
-# Salud real (04/10/2026, noche): un puerto abierto no basta. Si el puente WebTunnel muere, Tor deja
-# el puerto abierto sin poder salir y el Browser se quedaba colgado sin arreglarse solo. Cada 2
-# minutos abre una conexion de prueba por cada motor hasta check.torproject.org:443, por un circuito
-# propio ("vigia-salud"); tras 3 fallos seguidos reinicia ese motor (al arrancar, el motor pasa a todos
-# los puentes si el primero no conecta y pide puentes nuevos si ninguno conecta). Ademas, cada 6 horas
-# pide la renovacion de puentes (bridges.sh renovar-por 9050, que se limita a una cada 12 horas): antes
-# solo se renovaban al arrancar el motor, y el motor ya no se apaga nunca. Lo que hace queda en
-# vigia.log (sin direcciones ni paginas: solo motor, fallo y reinicio).
+# Real health: an open port is not enough. If the WebTunnel bridge dies, Tor keeps the port open
+# without being able to get out, and the Browser would hang without recovering. Every 2 minutes
+# it opens a test connection through each engine to check.torproject.org:443, over its own circuit
+# ("vigia-salud"); after 3 failures in a row it restarts that engine (on start, the engine switches
+# to all bridges if the first does not connect and requests new bridges if none do). Also, every
+# 6 hours it asks for a bridge renewal (bridges.sh renovar-por 9050, capped at one every 12 hours),
+# since the engine is never stopped any more. What it does is logged to vigia.log (no addresses
+# or pages: only engine, failure and restart).
 import importlib.util
 import os
 import socket
@@ -38,9 +38,9 @@ spec_c.loader.exec_module(carrera)
 
 REGISTRO = Path(__file__).with_name("vigia.log")
 PRUEBA = "check.torproject.org"
-CADA_SALUD = 120            # s entre comprobaciones de salud de cada motor
+CADA_SALUD = 120            # s between health checks of each engine
 FALLOS_PARA_REINICIAR = 3
-GRACIA_TRAS_REINICIO = 480  # s: el motor puede tardar en conectar (y en rescatar puentes)
+GRACIA_TRAS_REINICIO = 480  # s: the engine may take a while to connect (and to rescue bridges)
 CADA_RENOVAR = 6 * 3600
 PUENTES = "~/.smiley/bridges.sh"
 
@@ -56,7 +56,7 @@ def anotar(texto):
 
 
 def tor_sale(puerto, plazo=40):
-    """True si el motor del puerto dado abre de verdad una conexion por Tor (SOCKS5 con usuario propio)."""
+    """True if the engine on the given port really opens a connection through Tor (SOCKS5 with its own username)."""
     try:
         with socket.create_connection(("127.0.0.1", puerto), timeout=5) as s:
             s.settimeout(plazo)
@@ -95,18 +95,18 @@ def renovar_puentes():
         subprocess.Popen(["wsl.exe", "-d", l.DISTRO, "--", PUENTES, "renovar-por", "9050"],
                          creationflags=l.SIN_VENTANA, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                          stderr=subprocess.DEVNULL)
-        anotar("pido renovacion de puentes (bridges.sh la limita a una cada 12 horas)")
+        anotar("requesting bridge renewal (bridges.sh caps it at one every 12 hours)")
     except OSError:
         pass
 
 
 class Salud:
-    """Fallos seguidos de un motor y desde cuando se le puede volver a juzgar."""
+    """An engine's consecutive failures and from when it can be judged again."""
 
     def __init__(self, nombre, puerto, script, encender):
         self.nombre, self.puerto, self.script, self.encender = nombre, puerto, script, encender
         self.fallos = 0
-        self.juzgar_desde = time.monotonic() + 120   # al arrancar la sesion, dejarle conectar
+        self.juzgar_desde = time.monotonic() + 120   # at session start, give it time to connect
         self.proxima = 0.0
 
     def revisar(self):
@@ -116,13 +116,13 @@ class Salud:
         self.proxima = ahora + CADA_SALUD
         if tor_sale(self.puerto):
             if self.fallos:
-                anotar(f"{self.nombre}: vuelve a salir por Tor tras {self.fallos} fallo(s)")
+                anotar(f"{self.nombre}: going out through Tor again after {self.fallos} failure(s)")
             self.fallos = 0
             return
         self.fallos += 1
-        anotar(f"{self.nombre}: no sale por Tor (fallo {self.fallos} de {FALLOS_PARA_REINICIAR})")
+        anotar(f"{self.nombre}: not going out through Tor (failure {self.fallos} of {FALLOS_PARA_REINICIAR})")
         if self.fallos >= FALLOS_PARA_REINICIAR:
-            anotar(f"{self.nombre}: reinicio el motor")
+            anotar(f"{self.nombre}: restarting the engine")
             apagar(self.script)
             time.sleep(3)
             try:
@@ -141,10 +141,10 @@ try:
 except OSError:
     pass
 
-anotar("vigia en marcha")
-principal = Salud("motor principal (9050)", 9050, l.MOTOR, l.encender_motor)
-elegida = Salud("motor de salida elegida (9055)", 9055, l.MOTOR_ELEGIDA, l.encender_elegida)
-proxima_renovacion = time.monotonic() + 600   # la primera, 10 minutos despues de arrancar
+anotar("watchdog running")
+principal = Salud("main engine (9050)", 9050, l.MOTOR, l.encender_motor)
+elegida = Salud("chosen-exit engine (9055)", 9055, l.MOTOR_ELEGIDA, l.encender_elegida)
+proxima_renovacion = time.monotonic() + 600   # the first one, 10 minutes after start
 espera = 0
 espera_elegida = 0
 while True:
@@ -158,8 +158,8 @@ while True:
         except OSError:
             pass
         principal.tras_encender()
-        espera = 90  # el motor tarda en abrir el puerto: no lanzar otro mientras arranca
-    # Motor de salida elegida (127.0.0.1:9055), solo si chosen_exit.txt tiene sitios.
+        espera = 90  # the engine takes a while to open the port: do not launch another while it starts
+    # Chosen-exit engine (127.0.0.1:9055), only if chosen_exit.txt has sites.
     if l.elegida_activa():
         espera_elegida = 0
         if l.elegidos():
