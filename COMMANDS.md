@@ -170,6 +170,20 @@ Verifies that everything is still in place: local DNS, Tor engines, direct gate,
 python .\Checker.py
 ```
 
+### Speed tests (Browser	ests)
+Measure before changing anything in `speed.json`. The test Tor never touches the Browser engines. See `TOR-PERFORMANCE.md` for the method and what was learned.
+
+- `tor_test.py` (inside WSL): starts a test Tor on port 19060 with a named candidate: `same`, `bridge2`, `conflux2_latency`, `conflux2_throughput`, `exit_region`, `middle_region`, `middle_exit_region`. `REGION` (default `us,ca`) sets the countries.
+- `ab_tor.py CANDIDATE [rounds]`: the engine (9050) against the candidate, at the same time and with the same 24 pages. Run `same` first as the A/A control.
+- `ab_ports.py A B [rounds]`: two running ports against each other, for example `9070 9050` to check that the circuit race still helps.
+
+```powershell
+cd .\Browser	ests
+python .b_tor.py same
+python .b_tor.py middle_region
+python .b_ports.py 9070 9050
+```
+
 ### Browser configuration files
 - `Browser\launch_browser.pyw`, list `KEEP_SESSIONS`: domains whose session is kept on close.
 - `Browser\direct.txt`: sites that reject the whole Tor network and go out with your real IP. Only those sites.
