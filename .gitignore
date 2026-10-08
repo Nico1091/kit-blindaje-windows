@@ -4,3 +4,4 @@ Backups/
 Logs/
 Reports/
 Baseline/
+Browser/tests/ab_*.json

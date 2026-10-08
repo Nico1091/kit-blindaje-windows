@@ -39,6 +39,7 @@ The full guide, with every measure, its command and how to undo it, is in `PROTE
 - Windows telemetry is reduced, but Microsoft domains are not blocked: doing so can break updates and activation.
 - The Browser ships with direct entry to Tor. Bridges (WebTunnel) are optional: paste them into `~/.smiley/bridges.sh` inside WSL and set `"entry": "bridge"` in `Browser\speed.json`.
 - Sites that must go out without Tor go in `Browser\direct.txt`, and sites that block by country, in `Browser\chosen_exit.txt`.
+- Before tuning Tor speed, read `TOR-PERFORMANCE.md`: it explains where the waiting time goes and how to measure a change with the tests in `Browser	ests`.
 
 ## Warnings: consequences of using it
 
